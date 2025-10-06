@@ -1,14 +1,18 @@
 <?php declare(strict_types=1);
 
 use Pecee\SimpleRouter\SimpleRouter;
-use PHPExperts\WorkdayPlanner\Controllers\WorkdayPlannerController;
+// Remove the unused import from the Workday Planner
+// use PHPExperts\WorkdayPlanner\Controllers\WorkdayPlannerController;
+use Autonomo\DigitalPartner\Controllers\VolunteerController; // Make sure this import is present
 
 SimpleRouter::get('/', function () {
-    return file_get_contents(__DIR__ . '/views/index.html');
+    // This will now serve the Autonomo AI API documentation
+    return response()->view('index'); // Assuming index.html is in src/views/
 });
 
-// API endpoint for volunteer signup
-SimpleRouter::post('/api/volunteer-signup', [VolunteerController::class, 'register']);
+// API endpoint for AI companion volunteer signup
+// Changed from /api/volunteer-signup to /ai-companion/signup
+SimpleRouter::post('/ai-companion/signup', [VolunteerController::class, 'register']);
 
 // Get volunteer stats (for internal use)
 SimpleRouter::get('/api/volunteer-stats', [VolunteerController::class, 'getStats']);

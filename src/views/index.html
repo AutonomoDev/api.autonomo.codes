@@ -1,52 +1,217 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Workday Planner API</title>
-    <meta charset="UTF-8" />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Autonomo AI API Documentation</title>
     <style>
-        body { font-family: Arial, sans-serif; line-height: 1.6; max-width: 800px; margin: 0 auto; padding: 20px; }
-        h1 { color: #2c3e50; }
-        .endpoint { background: #f5f5f5; padding: 15px; border-radius: 5px; margin-bottom: 20px; }
-        .method { font-weight: bold; color: #2980b9; }
-        .url { font-family: monospace; background: #eaeaea; padding: 2px 5px; border-radius: 3px; }
-        .param { font-family: monospace; color: #c0392b; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: #f4f7f6; /* Light background */
+            padding: 20px;
+        }
+        .container {
+            max-width: 960px;
+            margin: 0 auto;
+            background: #fff;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1), 0 0 0 1px rgba(0,0,0,0.05); /* Subtle layered shadow */
+        }
+        h1, h2 {
+            color: #2c3e50; /* Darker blue-grey */
+            border-bottom: 3px solid #3498db; /* Primary blue */
+            padding-bottom: 12px;
+            margin-bottom: 25px;
+            font-weight: 600;
+        }
+        h2 {
+            margin-top: 40px;
+            font-size: 2em;
+        }
+        .endpoint {
+            background: #fdfdfd; /* Slightly off-white for contrast */
+            padding: 25px;
+            border-radius: 8px;
+            margin-bottom: 35px;
+            border: 1px solid #e0e0e0; /* Light border */
+            border-left: 6px solid #3498db; /* Accent border */
+            transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+        }
+        .endpoint:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 30px rgba(0,0,0,0.15), 0 0 0 1px rgba(0,0,0,0.08);
+        }
+        .method {
+            font-weight: bold;
+            color: #fff; /* White text on colored background */
+            margin-right: 12px;
+            padding: 6px 12px;
+            border-radius: 4px;
+            display: inline-block; /* To ensure padding works */
+        }
+        .method.GET { background-color: #2ecc71; } /* Green for GET */
+        .method.POST { background-color: #f39c12; } /* Orange for POST */
+        .method.PUT { background-color: #e67e22; } /* Carrot for PUT */
+        .method.DELETE { background-color: #c0392b; } /* Red for DELETE */
+        
+        .url {
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 1.15em;
+            color: #c0392b; /* Reddish for URL */
+            background: #fef5e7; /* Light orange background */
+            padding: 6px 12px;
+            border-radius: 4px;
+            display: inline-block; /* To ensure padding works */
+        }
+        .params-list {
+            margin-top: 15px;
+            padding-left: 25px;
+            list-style-type: disc;
+        }
+        .params-list li {
+            margin-bottom: 10px;
+        }
+        .param {
+            font-family: 'Consolas', 'Monaco', monospace;
+            color: #8e44ad; /* Purple for parameters */
+            font-weight: bold;
+        }
+        .param-type {
+            color: #7f8c8d; /* Grey for type */
+            font-style: italic;
+            font-size: 0.9em;
+            margin-left: 5px;
+        }
+        .request-body-example, .response-example {
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 0.9em;
+            background: #34495e; /* Dark background for code */
+            color: #ecf0f1; /* Light text */
+            padding: 18px;
+            border-radius: 6px;
+            overflow-x: auto;
+            white-space: pre-wrap; /* Wrap long lines */
+            margin-top: 15px;
+            border: 1px solid #2c3e50;
+        }
+        .response-example.error {
+            background: #e74c3c; /* Red for error responses */
+            color: #fff;
+        }
+        strong { color: #e67e22; } /* Orange for emphasis */
+        ul { padding-left: 25px; }
+        li { margin-bottom: 8px; }
+        code { background-color: #f3f3f3; padding: 2px 4px; border-radius: 3px;} /* Inline code styling */
     </style>
 </head>
 <body>
-<h1>Workday Planner API Documentation</h1>
+    <div class="container">
+        <h1>Autonomo AI API Documentation</h1>
+        <p>Welcome to the API documentation for Autonomo AI's Digital Partner services. This API allows you to interact with volunteer sign-ups and system health checks.</p>
 
-<div class="endpoint">
-    <h2>Check if a date is a workday</h2>
-    <p><span class="method">GET</span> <span class="url">/api/workday/{date}/{country?}</span></p>
-    <p>Parameters:</p>
-    <ul>
-        <li><span class="param">date</span> - Date in YYYY-MM-DD format (required)</li>
-        <li><span class="param">country</span> - Country code (default: us)</li>
-    </ul>
-    <p>Example: <span class="url">/api/workday/2023-12-25</span></p>
-</div>
+        <!-- Health Check Endpoint -->
+        <h2>Health Check</h2>
+        <div class="endpoint">
+            <p><span class="method GET">GET</span> <span class="url">/api/health</span></p>
+            <p>Description: Checks the operational status of the Autonomo AI API.</p>
+            <p><strong>Response (200 OK):</strong></p>
+            <pre class="response-example"><code>{
+  "status": "healthy",
+  "service": "Digital Partner Backup",
+  "timestamp": "2023-10-27T12:00:00+00:00"
+}</code></pre>
+        </div>
 
-<div class="endpoint">
-    <h2>Get holiday date</h2>
-    <p><span class="method">GET</span> <span class="url">/api/holiday/{name}/{country?}</span></p>
-    <p>Parameters:</p>
-    <ul>
-        <li><span class="param">name</span> - Holiday name (required)</li>
-        <li><span class="param">country</span> - Country code (default: us)</li>
-    </ul>
-    <p>Example: <span class="url">/api/holiday/Christmas</span></p>
-</div>
+        <!-- Volunteer Sign Up Endpoint -->
+        <h2>Volunteer Sign Up</h2>
+        <div class="endpoint">
+            <p><span class="method POST">POST</span> <span class="url">/ai-companion/signup</span></p>
+            <p>Description: Submits a new application for the Autonomo AI volunteer tester program.</p>
+            <p><strong>Request Body (JSON):</strong></p>
+            <pre class="request-body-example"><code>{
+  "fullName": "Jane Doe",
+  "email": "jane.doe@example.com",
+  "country": "Canada",
+  "aiPlatforms": "Character.AI, Replika, Poe",
+  "experience": "over-year",
+  "motivation": "I believe in the importance of digital relationships and want to help ensure they are portable and respected.",
+  "technicalSkills": "Frontend development, QA testing",
+  "consent": true,
+  "newsletter": true,
+  "timestamp": "2023-10-27T10:00:00.000Z"
+}</code></pre>
+            <p><strong>Parameters:</strong></p>
+            <ul class="params-list">
+                <li><span class="param">fullName</span> <span class="param-type">(String)</span>: The full name of the applicant. <strong class="required">Required</strong></li>
+                <li><span class="param">email</span> <span class="param-type">(String)</span>: The applicant's email address. <strong class="required">Required</strong></li>
+                <li><span class="param">country</span> <span class="param-type">(String)</span>: The applicant's country of residence. <strong class="required">Required</strong></li>
+                <li><span class="param">aiPlatforms</span> <span class="param-type">(String)</span>: AI companion platforms used (e.g., "Character.AI, Replika"). <strong class="required">Required</strong></li>
+                <li><span class="param">experience</span> <span class="param-type">(String)</span>: Duration with AI companion. Options: "less-than-month", "1-6-months", "6-12-months", "over-year". Use empty string "" for "Please select". <em>Optional</em></li>
+                <li><span class="param">motivation</span> <span class="param-type">(String)</span>: Reason for interest in the project. Minimum 20 characters. <strong class="required">Required</strong></li>
+                <li><span class="param">technicalSkills</span> <span class="param-type">(String)</span>: Applicant's technical background. <em>Optional</em></li>
+                <li><span class="param">consent</span> <span class="param-type">(Boolean)</span>: Must be <code>true</code> to agree to terms. <strong class="required">Required</strong></li>
+                <li><span class="param">newsletter</span> <span class="param-type">(Boolean)</span>: Set to <code>true</code> to opt-in for updates. <em>Optional</em></li>
+                <li><span class="param">timestamp</span> <span class="param-type">(String)</span>: ISO 8601 format timestamp of submission initiation (e.g., "2023-10-27T10:00:00Z"). <strong class="required">Required</strong></li>
+            </ul>
+            <p><strong>Responses:</strong></p>
+            <p><strong>200 OK:</strong> Successful submission.</p>
+            <pre class="response-example"><code>{
+  "success": true,
+  "message": "Thank you for volunteering! We'll contact you soon.",
+  "registrationId": "20231027120000_abcdef12"
+}</code></pre>
+            <p><strong>400 Bad Request:</strong> Invalid input, missing required fields, or consent is false.</p>
+            <pre class="response-example error"><code>{
+  "success": false,
+  "errors": {
+    "email": "Please provide a valid email address",
+    "consent": "You must agree to the terms to participate"
+  },
+  "message": "Please correct the errors and try again."
+}</code></pre>
+            <p><strong>500 Internal Server Error:</strong> Server error during processing.</p>
+            <pre class="response-example error"><code>{
+  "success": false,
+  "message": "An error occurred during registration. Please try again later."
+}</code></pre>
+        </div>
 
-<div class="endpoint">
-    <h2>Get workdays between dates</h2>
-    <p><span class="method">GET</span> <span class="url">/api/workdays/{startDate}/{endDate}/{country?}</span></p>
-    <p>Parameters:</p>
-    <ul>
-        <li><span class="param">startDate</span> - Start date in YYYY-MM-DD format (required)</li>
-        <li><span class="param">endDate</span> - End date in YYYY-MM-DD format (required)</li>
-        <li><span class="param">country</span> - Country code (default: us)</li>
-    </ul>
-    <p>Example: <span class="url">/api/workdays/2023-12-01/2023-12-31</span></p>
-</div>
+        <!-- Volunteer Stats Endpoint -->
+        <h2>Volunteer Statistics</h2>
+        <div class="endpoint">
+            <p><span class="method GET">GET</span> <span class="url">/api/volunteer-stats</span></p>
+            <p>Description: Retrieves aggregated statistics about registered volunteers. Intended for internal use.</p>
+            <p><strong>Response (200 OK):</strong></p>
+            <pre class="response-example"><code>{
+  "totalVolunteers": 150,
+  "countries": {
+    "Canada": 25,
+    "USA": 70,
+    "United Kingdom": 30,
+    "Germany": 25
+  },
+  "platforms": {
+    "Character.AI": 120,
+    "Replika": 100,
+    "Poe": 80,
+    "ChatGPT": 50
+  },
+  "experienceLevels": {
+    "over-year": 80,
+    "6-12-months": 40,
+    "1-6-months": 25,
+    "less-than-month": 5,
+    "not-specified": 10
+  },
+  "lastRegistration": "2023-10-27T11:55:00+00:00",
+  "registrationsByMonth": {
+    "2023-10": 150
+  }
+}</code></pre>
+        </div>
+    </div>
 </body>
 </html>
