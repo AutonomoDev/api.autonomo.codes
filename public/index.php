@@ -1,5 +1,8 @@
 <?php declare(strict_types=1);
 
+error_reporting(E_ALL); // Add for development debugging
+ini_set('display_errors', '1'); // Add for development debugging
+
 /**
  * This file is part of MiniApiBase, a PHP Experts, Inc., Project.
  *
@@ -21,7 +24,7 @@ require_once __DIR__ . '/../src/routes.php';
 
 // I *HATE* CORS!!!
 // Check if the request is a preflight request
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     // Handle preflight requests
     header('Access-Control-Allow-Origin: *');
     header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
@@ -37,7 +40,7 @@ header('Access-Control-Allow-Origin: *');
  * Can be overwritten by using the namespace config option on your routes.
  */
 
-SimpleRouter::setDefaultNamespace('\PHPExperts\WorkdayPlanner');
+SimpleRouter::setDefaultNamespace('Autonomo\DigitalPartner');
 
 // Start the routing
 SimpleRouter::start();

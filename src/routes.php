@@ -1,27 +1,38 @@
 <?php declare(strict_types=1);
+// ==== ./src/routes.php ====
 
 use Pecee\SimpleRouter\SimpleRouter;
-// Remove the unused import from the Workday Planner
-// use PHPExperts\WorkdayPlanner\Controllers\WorkdayPlannerController;
-use Autonomo\DigitalPartner\Controllers\VolunteerController; // Make sure this import is present
+use Autonomo\DigitalPartner\Controllers\VolunteerController;
 
 SimpleRouter::get('/', function () {
-    // This will now serve the Autonomo AI API documentation
-    return response()->view('index'); // Assuming index.html is in src/views/
+    response()->header('Content-Type: text/html');
+    return file_get_contents(__DIR__ . '/views/index.html');
 });
 
 // API endpoint for AI companion volunteer signup
-// Changed from /api/volunteer-signup to /ai-companion/signup
-SimpleRouter::post('/ai-companion/signup', [VolunteerController::class, 'register']);
+SimpleRouter::post('/ai-companion/signup', function() {
+    $controller = new VolunteerController();
+    $result = $controller->register();
+    
+    response()->header('Content-Type: application/json');
+    return json_encode($result);
+});
 
 // Get volunteer stats (for internal use)
-SimpleRouter::get('/api/volunteer-stats', [VolunteerController::class, 'getStats']);
+SimpleRouter::get('/api/volunteer-stats', function() {
+    $controller = new VolunteerController();
+    $result = $controller->getStats();
+    
+    response()->header('Content-Type: application/json');
+    return json_encode($result);
+});
 
 // Health check endpoint
 SimpleRouter::get('/api/health', function () {
-    return [
+    response()->header('Content-Type: application/json');
+    return json_encode([
         'status' => 'healthy',
         'service' => 'Digital Partner Backup',
         'timestamp' => date('c')
-    ];
+    ]);
 });

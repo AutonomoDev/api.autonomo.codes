@@ -44,12 +44,12 @@
     },
     "autoload": {
         "psr-4": {
-            "PHPExperts\\MiniApiBase\\" : ".framework/",
-            "PHPExperts\\WorkdayPlanner\\": "src/"
+            "PHPExperts\\MiniApiBase\\": ".framework/",
+            "Autonomo\\DigitalPartner\\": "src/"
         }
     },
     "autoload-dev": {
-        "psr-4": { "PHPExperts\\MiniApiBase\\Tests\\" : "tests/" }
+        "psr-4": { "PHPExperts\\MiniApiBase\\Tests\\": "tests/" }
     },
     "config": {
         "classmap-authoritative": true,
