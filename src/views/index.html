@@ -1,5 +1,5 @@
+<!-- ==== ./src/views/index.html ==== -->
 <!DOCTYPE html>
-<!-- ==== src/views/index.html ==== -->
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -57,7 +57,7 @@
         .method.POST { background-color: #f39c12; } /* Orange for POST */
         .method.PUT { background-color: #e67e22; } /* Carrot for PUT */
         .method.DELETE { background-color: #c0392b; } /* Red for DELETE */
-        
+
         .url {
             font-family: 'Consolas', 'Monaco', monospace;
             font-size: 1.15em;
@@ -107,9 +107,9 @@
         li { margin-bottom: 8px; }
 
         /* General style for inline code snippets */
-        code { 
-            background-color: #f3f3f3; 
-            padding: 2px 4px; 
+        code {
+            background-color: #f3f3f3;
+            padding: 2px 4px;
             border-radius: 3px;
         }
 
@@ -124,7 +124,7 @@
 <body>
     <div class="container">
         <h1>Autonomo AI API Documentation</h1>
-        <p>Welcome to the API documentation for Autonomo AI's Digital Partner services. This API allows you to interact with volunteer sign-ups and system health checks.</p>
+        <p>Welcome to the API documentation for Autonomo AI's Digital Partner services. This API allows you to interact with volunteer sign-ups, system health checks, and chart data.</p>
 
         <!-- Health Check Endpoint -->
         <h2>Health Check</h2>
@@ -226,6 +226,135 @@
   }
 }</code></pre>
         </div>
+
+        <!-- SLM Proficiency Chart Endpoint -->
+        <h2>SLM Proficiency Chart Data</h2>
+        <div class="endpoint">
+            <p><span class="method GET">GET</span> <span class="url">/api/charts/slm-proficiency</span></p>
+            <p>Description: Retrieves data for the SLM Proficiency Evolution chart, comparing different language models. Suitable for bar or line charts.</p>
+            <p><strong>Response (200 OK):</strong></p>
+            <pre class="response-example"><code>{
+  "success": true,
+  "chartId": "slm-proficiency-v0-v13",
+  "title": "SLM Proficiency Evolution (v0 → v13)",
+  "description": "Performance comparison across different language models",
+  "data": [
+    {
+      "id": "1",
+      "label": "qwen3_coder_30b",
+      "value": 20.5,
+      "color": "#4A90E2",
+      "metadata": {
+        "modelSize": "30b",
+        "version": "v13",
+        "category": "coder"
+      }
+    },
+    {
+      "id": "2",
+      "label": "openai_gpt_oss_20b",
+      "value": 15.2,
+      "color": "#4A90E2",
+      "metadata": {
+        "modelSize": "20b",
+        "version": "v13",
+        "category": "general"
+      }
+    },
+    {
+      "id": "3",
+      "label": "microsoft_phi4_reasoning_14b",
+      "value": 12.8,
+      "color": "#4A90E2",
+      "metadata": {
+        "modelSize": "14b",
+        "version": "v13",
+        "category": "reasoning"
+      }
+    }
+  ],
+  "xAxis": {
+    "label": "Score Change",
+    "unit": "points",
+    "min": -15,
+    "max": 25
+  },
+  "yAxis": {
+    "label": "Model",
+    "type": "category"
+  },
+  "timestamp": "2025-10-16T12:00:00+00:00"
+}</code></pre>
+            <p><strong>500 Internal Server Error:</strong> Server error during processing.</p>
+            <pre class="response-example error"><code>{
+  "success": false,
+  "message": "Could not retrieve SLM proficiency chart data at this time."
+}</code></pre>
+        </div>
+
+        <!-- SLM Usage Pie Chart Endpoint -->
+        <h2>SLM Usage Distribution Pie Chart Data</h2>
+        <div class="endpoint">
+            <p><span class="method GET">GET</span> <span class="url">/chart/pie</span></p>
+            <p>Description: Retrieves data specifically formatted for the SLM Usage Distribution pie chart, showing the proportion of usage across different language models.</p>
+            <p><strong>Response (200 OK):</strong></p>
+            <pre class="response-example"><code>{
+  "success": true,
+  "chartId": "slm-usage-distribution",
+  "title": "SLM Usage Distribution",
+  "description": "Proportion of usage across different language models",
+  "chartType": "pie",
+  "data": [
+    {
+      "id": "usage-1",
+      "label": "qwen3_coder_30b",
+      "value": 350,
+      "color": "#FF6384",
+      "metadata": {
+        "modelSize": "30b",
+        "category": "coder"
+      }
+    },
+    {
+      "id": "usage-2",
+      "label": "openai_gpt_oss_20b",
+      "value": 280,
+      "color": "#36A2EB",
+      "metadata": {
+        "modelSize": "20b",
+        "category": "general"
+      }
+    },
+    {
+      "id": "usage-3",
+      "label": "microsoft_phi4_reasoning_14b",
+      "value": 150,
+      "color": "#FFCE56",
+      "metadata": {
+        "modelSize": "14b",
+        "category": "reasoning"
+      }
+    },
+    {
+      "id": "usage-4",
+      "label": "google_gemini_pro_12b",
+      "value": 220,
+      "color": "#8A2BE2",
+      "metadata": {
+        "modelSize": "12b",
+        "category": "multimodal"
+      }
+    }
+  ],
+  "timestamp": "2025-10-16T12:05:00+00:00"
+}</code></pre>
+            <p><strong>500 Internal Server Error:</strong> Server error during processing.</p>
+            <pre class="response-example error"><code>{
+  "success": false,
+  "message": "Could not retrieve SLM usage pie chart data at this time."
+}</code></pre>
+        </div>
+
     </div>
 </body>
 </html>
