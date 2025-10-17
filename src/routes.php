@@ -52,9 +52,9 @@ SimpleRouter::get('/api/health', function () {
 // GET /api/charts/slm-usage-distribution
 SimpleRouter::get('/api/charts/{id}', [ChartController::class, 'getChart']);
 
-// Specific endpoint for the SLM Usage Distribution Pie Chart as requested '/chart/pie'.
-// This route explicitly maps to the pie chart functionality.
-SimpleRouter::get('/chart/pie', function() {
+// Specific endpoint for the SLM Usage Distribution Pie Chart.
+// UPDATED URL PATH to /api/charts/pie as per design requirement.
+SimpleRouter::get('/api/charts/pie', function() { // <-- Changed URL path here
     $controller = new ChartController();
     // Call the getChart method with the specific internal ID for the pie chart.
     // The getChart method will then dispatch to the correct internal handler (getSlmUsageDistribution).

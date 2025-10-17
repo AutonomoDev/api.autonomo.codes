@@ -69,9 +69,7 @@ echo ""
 # --- 5. Test SLM Usage Pie Chart Data Endpoint ---
 # This endpoint returns data specifically formatted for a pie chart.
 echo "--- Testing SLM Usage Pie Chart Data Endpoint ---"
-# Accessing the pie chart via the dedicated '/chart/pie' route as requested.
-# This assumes a route is configured in src/routes.php like:
-# SimpleRouter::get('/chart/pie', function() { return (new \Autonomo\DigitalPartner\Controllers\ChartController())->getChart(\Autonomo\DigitalPartner\Controllers\ChartController::SLM_USAGE_PIE_ID); });
+# Accessing the pie chart via the new dedicated '/api/charts/pie' route.
 #
 # Expected response structure:
 # {
@@ -83,7 +81,7 @@ echo "--- Testing SLM Usage Pie Chart Data Endpoint ---"
 #     "data": [...], // Array of slice objects
 #     "timestamp": "ISO8601_timestamp"
 # }
-curl -X GET "${BASE_URL}/chart/pie"
+curl -X GET "${BASE_URL}/api/charts/pie" # <-- Changed URL path here
 echo ""
 echo ""
 
