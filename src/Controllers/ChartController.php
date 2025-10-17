@@ -49,7 +49,8 @@ class ChartController
     private const SLM_PROFICIENCY_DESCRIPTION = 'Performance comparison across different language models';
 
     // Constants for the new SLM Usage Distribution chart (Pie Chart)
-    private const SLM_USAGE_PIE_ID = 'slm-usage-distribution';
+    // CHANGED TO PUBLIC: Made public so it can be referenced in routes.php
+    public const SLM_USAGE_PIE_ID = 'slm-usage-distribution';
     private const SLM_USAGE_PIE_TITLE = 'SLM Usage Distribution';
     private const SLM_USAGE_PIE_DESCRIPTION = 'Proportion of usage across different language models';
 
