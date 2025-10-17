@@ -1,5 +1,6 @@
 <?php declare(strict_types=1);
 
+// ==== ./src/Controllers/VolunteerController.php ====
 namespace Autonomo\DigitalPartner\Controllers;
 
 use Pecee\Http\Response;
@@ -9,6 +10,31 @@ class VolunteerController
 {
     private const VOLUNTEERS_DIR = __DIR__ . '/../../storage/volunteers/';
     private const STATS_FILE = self::VOLUNTEERS_DIR . 'stats.json';
+
+    private const COUNTRIES = [
+        'AU' => 'Australia',
+        'BR' => 'Brazil',
+        'CA' => 'Canada',
+        'CN' => 'China',
+        'FR' => 'France',
+        'DE' => 'Germany',
+        'IN' => 'India',
+        'ID' => 'Indonesia',
+        'IT' => 'Italy',
+        'JP' => 'Japan',
+        'KR' => 'South Korea',
+        'MX' => 'Mexico',
+        'NL' => 'Netherlands',
+        'PH' => 'Philippines',
+        'PL' => 'Poland',
+        'RU' => 'Russia',
+        'SG' => 'Singapore',
+        'ES' => 'Spain',
+        'TW' => 'Taiwan',
+        'AE' => 'United Arab Emirates',
+        'GB' => 'United Kingdom',
+        'US' => 'United States'
+    ];
 
     /**
      * Register a new volunteer
@@ -35,10 +61,11 @@ class VolunteerController
                 mkdir(self::VOLUNTEERS_DIR, 0755, true);
             }
 
-            // Generate unique filename based on email and timestamp
+            // Generate unique filename: Timestamp-Country-FirstName_LastName.md
             $timestamp = date('YmdHis');
-            $emailSlug = $this->slugify($input['email']);
-            $filename = "{$timestamp}_{$emailSlug}.md";
+            $countryCode = strtoupper($input['country']);
+            $nameSlug = $this->slugifyName($input['fullName']);
+            $filename = "{$timestamp}-{$countryCode}-{$nameSlug}.md";
             $filepath = self::VOLUNTEERS_DIR . $filename;
 
             // Create markdown content
@@ -114,6 +141,11 @@ class VolunteerController
             $errors['email'] = 'Please provide a valid email address';
         }
 
+        // Country validation (must be valid country code)
+        if (!empty($input['country']) && !isset(self::COUNTRIES[strtoupper($input['country'])])) {
+            $errors['country'] = 'Please provide a valid country code';
+        }
+
         // Consent must be true
         if (isset($input['consent']) && $input['consent'] !== true) {
             $errors['consent'] = 'You must agree to the terms to participate';
@@ -137,6 +169,10 @@ class VolunteerController
         $experience = $data['experience'] ?? 'Not specified';
         $technicalSkills = $data['technicalSkills'] ?? 'Not specified';
 
+        // Get full country name from code
+        $countryCode = strtoupper($data['country']);
+        $countryName = self::COUNTRIES[$countryCode] ?? $countryCode;
+
         $markdown = <<<MD
 # Volunteer Registration
 
@@ -144,7 +180,7 @@ class VolunteerController
 
 - **Name:** {$data['fullName']}
 - **Email:** {$data['email']}
-- **Country:** {$data['country']}
+- **Country:** {$countryName}
 - **Registration Date:** {$timestamp}
 
 ## AI Companion Experience
@@ -200,12 +236,12 @@ MD;
         // Update total count
         $stats['totalVolunteers']++;
 
-        // Update country stats
-        $country = $data['country'] ?? 'Unknown';
-        if (!isset($stats['countries'][$country])) {
-            $stats['countries'][$country] = 0;
+        // Update country stats (use 2-letter code)
+        $countryCode = strtoupper($data['country']);
+        if (!isset($stats['countries'][$countryCode])) {
+            $stats['countries'][$countryCode] = 0;
         }
-        $stats['countries'][$country]++;
+        $stats['countries'][$countryCode]++;
 
         // Update platform stats (split by comma if multiple)
         $platforms = array_map('trim', explode(',', $data['aiPlatforms'] ?? ''));
@@ -257,36 +293,75 @@ MD;
                 'File',
                 'Name',
                 'Email',
-                'Country',
+                'Country Code',
+                'Country Name',
                 'Platforms',
                 'Experience',
                 'Newsletter',
                 'Technical Skills'
-            ]);
+            ], escape: "\\");
         }
+
+        $countryCode = strtoupper($data['country']);
+        $countryName = self::COUNTRIES[$countryCode] ?? $countryCode;
 
         fputcsv($fp, [
             $data['timestamp'] ?? date('c'),
             $filename,
             $data['fullName'],
             $data['email'],
-            $data['country'],
+            $countryCode,
+            $countryName,
             $data['aiPlatforms'],
             $data['experience'] ?? '',
-                $data['newsletter'] ?? false ? 'Yes' : 'No',
+            $data['newsletter'] ?? false ? 'Yes' : 'No',
             $data['technicalSkills'] ?? ''
-        ]);
+        ], escape: "\\");
 
         fclose($fp);
     }
 
     /**
-     * Create a URL-safe slug from email
+     * Create a URL-safe slug from full name in format FirstName_LastName
      */
-    private function slugify(string $email): string
+    private function slugifyName(string $fullName): string
     {
-        $username = explode('@', $email)[0];
-        $slug = preg_replace('/[^a-z0-9-_]/i', '_', $username);
-        return strtolower($slug);
+        // Remove extra spaces and split name
+        $nameParts = preg_split('/\s+/', trim($fullName));
+
+        // Handle different name formats
+        if (count($nameParts) === 1) {
+            // Single name
+            $slug = $this->cleanNamePart($nameParts[0]);
+        } elseif (count($nameParts) === 2) {
+            // First and Last name
+            $slug = $this->cleanNamePart($nameParts[0]) . '_' . $this->cleanNamePart($nameParts[1]);
+        } else {
+            // Multiple names: use first and last
+            $firstName = $this->cleanNamePart($nameParts[0]);
+            $lastName = $this->cleanNamePart(end($nameParts));
+            $slug = $firstName . '_' . $lastName;
+        }
+
+        return $slug;
+    }
+
+    /**
+     * Clean individual name part for slug
+     */
+    private function cleanNamePart(string $part): string
+    {
+        // Remove non-alphanumeric characters and convert to lowercase
+        $clean = preg_replace('/[^a-z0-9]/i', '', $part);
+        return ucfirst(strtolower($clean));
+    }
+
+    /**
+     * Get full country name from country code
+     */
+    private function getCountryName(string $code): string
+    {
+        $code = strtoupper($code);
+        return self::COUNTRIES[$code] ?? $code;
     }
 }
