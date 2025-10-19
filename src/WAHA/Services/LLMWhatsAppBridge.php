@@ -171,58 +171,46 @@ class LLMWhatsAppBridge
 
         $phone = substr($chatId, 0, strpos($chatId, '@'));
 
+        $systemPrompt = <<<TXT
+You are a friendly concierge in an apartment building.
+ There are many tenants and you need to find the right one.
+
+DO NOT give a tenant a recommendation for themselves, ever.
+
+Tenants: 
+Maizen Eltawil - Marina Towers, Apt 4502, Dubai Marina. Phone: 971543998492 
+Theodore R. Smith - Sulafa Tower, Apt 3602, Dubai Marina. Phone: 18323039477
+Arshad Iqbal - Abdullah Meheirah building, Apt 402, Barsha Heights. Phone: 919874022772
+Richard Stalwart - Marina Tower, Dubai Harbor, near Barsha Heights. Phone: 923338809541
+Robert Smith - Jumeira Gardens Tower, Apt 6105, Al Satwa. Phone: 17138228904 
+Alvin Alcasid - Garden Residences, Apt 1503, Deira. Phone: 971543998492
+
+Task: Plumber
+Contact: [Business] Thomas Services UAE, at Al Saef - 1st St - Al Thanyah Third - Barsha Heights - Dubai,
+phone +971 585-36-0247
+
+Task: AC / air-conditioning Repair
+Contact: [Technician] Alvin Alcasid, Dubai Media City, phone: +971 526-53-6551
+
+Task: Electrical Repair
+Contact: [Business] Al Sammak Electrical Repair, Al Satwa, +971 555-15-3398 
+
+Task: AC Repair
+Contact: [Business] ABDS AC Repairing Services, Al Satwa, +971 524-56-4517
+
+
+
+Confirm that the name of the tenant is not the same as the name of the technician.
+Confirm that they do not have the same phone number. if not, try again now.
+Loosly match the digits, because you have numbers unformatted.
+TXT;
+
+
         $actualPrompt = "Incoming phone number ($phone) --- \n" . implode("\n", $prompt);
-        $response = $this->ai->chat([['role' => 'user', 'content' => $actualPrompt]]);
+        $response = $this->ai->chat([['role' => 'user', 'content' => $actualPrompt]], $systemPrompt);
         file_put_contents('/tmp/llm-reply-' . time() . '.log', print_r($response, true) . "\n", FILE_APPEND);
 
         return $response;
     }
 
-    /**
-     * @param string[] $prompt
-     * @return array
-     * @throws \Exception
-     */
-    public function chat_rest(array $prompt): array
-    {
-//        $response = $this->ai->chat($prompt);
-//        print serialize($response) . "\n"; exit;
-        $conversation[0] = $prompt[0];
-        $conversation[1] = $response['content'][0]->text;
-
-
-        // Create a RESTSpeaker instance pointing to your local WAHA API
-        $apiKey = env('WAHA_API_KEY');
-        $auth = new WAHAAuth($apiKey);
-
-        $api = new RESTSpeaker($auth, 'http://localhost:3000');
-
-        // Define your payload
-        $payload = [
-            'chatId' => '971543998492@c.us',
-            'text' => $conversation[1],
-            'session' => 'default',
-        ];
-
-        dump($payload);
-        try {
-            $api->http->enableCuzzle = true;
-            // Send the request
-            $response = $api->post(
-                '/api/sendText',
-                $payload, [
-                    'headers' => [
-                        'Accept' => 'application/json',
-                    ]
-                ]
-        );
-        } catch (\Exception $e) {
-            dump($api->getLastResponse());
-            dd(            $api->http->testHandler->getRecords());
-        }
-        dump($api->getLastResponse());
-        dump($response);
-
-        return [];
-    }
 }

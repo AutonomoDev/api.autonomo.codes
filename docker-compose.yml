@@ -15,7 +15,7 @@ services:
       - .env
 
   waha_bridge:
-    image: phpexperts/web:nginx-php8.4
+    image: phpexperts/web:nginx-php8.4-debug
     container_name: waha_bridge
     #restart: unless-stopped
     env_file:

@@ -40,7 +40,7 @@ header('Access-Control-Allow-Origin: *');
  * Can be overwritten by using the namespace config option on your routes.
  */
 
-SimpleRouter::setDefaultNamespace('Autonomo\DigitalPartner');
+SimpleRouter::setDefaultNamespace('PHPExperts\MiniApiBase');
 
 // Start the routing
 SimpleRouter::start();

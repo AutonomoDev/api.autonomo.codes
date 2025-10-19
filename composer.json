@@ -1,5 +1,5 @@
 {
-    "name": "phpexperts/mini-api-base",
+    "name": "autonomo/api",
     "description": "A quick and easy standard PHP skeleton.",
     "keywords": [
         "universal package layout",
@@ -33,13 +33,13 @@
         "illuminate/filesystem": "^11.37",
         "0.0.0/composer-include-files": "^1.6",
         "autonomo/ai-speaker": "^1.0",
-        "ext-curl": "*"
+        "ext-curl": "*",
+        "symfony/var-dumper": "^7.3"
     },
     "require-dev": {
         "phpunit/phpunit": "*",
         "phpstan/phpstan": "*",
         "friendsofphp/php-cs-fixer": "*",
-        "symfony/var-dumper": "*",
         "povils/phpmnd": "*",
         "squizlabs/php_codesniffer": "*",
         "phpexperts/dockerize": "^14.0",
