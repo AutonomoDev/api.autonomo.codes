@@ -292,66 +292,46 @@
 }</code></pre>
         </div>
 
-        <!-- SLM Usage Pie Chart Endpoint -->
-        <h2>SLM Usage Distribution Pie Chart Data</h2>
+        <!-- Market Share Chart Endpoint -->
+        <h2>Market Share Distribution Chart Data</h2>
         <div class="endpoint">
-            <p><span class="method GET">GET</span> <span class="url">/api/charts/pie</span></p> <!-- <-- Changed URL path here -->
-            <p>Description: Retrieves data specifically formatted for the SLM Usage Distribution pie chart, showing the proportion of usage across different language models.</p>
+            <p><span class="method GET">GET</span> <span class="url">/api/charts/pie</span></p>
+            <p>Description: Retrieves data for the Market Share Distribution 2025 chart, including detailed metadata and product performance metrics.</p>
             <p><strong>Response (200 OK):</strong></p>
             <pre class="response-example"><code>{
   "success": true,
-  "chartId": "slm-usage-distribution",
-  "title": "SLM Usage Distribution",
-  "description": "Proportion of usage across different language models",
-  "chartType": "pie",
+  "chartId": "market-share-2025",
+  "title": "Market Share Distribution 2025",
+  "description": "Product market share breakdown by category",
+  "totalValue": 1000000,
+  "currency": "USD",
   "data": [
     {
-      "id": "usage-1",
-      "label": "qwen3_coder_30b",
-      "value": 350,
-      "color": "#FF6384",
-      "metadata": {
-        "modelSize": "30b",
-        "category": "coder"
-      }
-    },
-    {
-      "id": "usage-2",
-      "label": "openai_gpt_oss_20b",
-      "value": 280,
-      "color": "#36A2EB",
-      "metadata": {
-        "modelSize": "20b",
-        "category": "general"
-      }
-    },
-    {
-      "id": "usage-3",
-      "label": "microsoft_phi4_reasoning_14b",
-      "value": 150,
-      "color": "#FFCE56",
-      "metadata": {
-        "modelSize": "14b",
-        "category": "reasoning"
-      }
-    },
-    {
-      "id": "usage-4",
-      "label": "google_gemini_pro_12b",
-      "value": 220,
-      "color": "#8A2BE2",
-      "metadata": {
-        "modelSize": "12b",
-        "category": "multimodal"
+      "id": "1",
+      "label": "Product A",
+      "value": 350000,
+      "percentage": 35,
+      "color": "#2563EB",
+      "details": {
+        "revenue": 350000,
+        "growth": 12.5,
+        "customers": 1500,
+        "region": "North America",
+        "trend": "increasing"
       }
     }
   ],
-  "timestamp": "2025-10-16T12:05:00+00:00"
+  "metadata": {
+    "totalCustomers": 4200,
+    "averageGrowth": 7.64,
+    "lastUpdated": "2025-10-16T12:00:00+00:00"
+  },
+  "timestamp": "2025-10-16T12:00:00+00:00"
 }</code></pre>
             <p><strong>500 Internal Server Error:</strong> Server error during processing.</p>
             <pre class="response-example error"><code>{
   "success": false,
-  "message": "Could not retrieve SLM usage pie chart data at this time."
+  "message": "Could not retrieve market share chart data at this time."
 }</code></pre>
         </div>
 

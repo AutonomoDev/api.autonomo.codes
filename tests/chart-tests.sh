@@ -66,20 +66,17 @@ curl -X GET "${BASE_URL}/api/charts/slm-proficiency"
 echo ""
 echo ""
 
-# --- 5. Test SLM Usage Pie Chart Data Endpoint ---
-# This endpoint returns data specifically formatted for a pie chart.
-echo "--- Testing SLM Usage Pie Chart Data Endpoint ---"
-# Accessing the pie chart via the new dedicated '/api/charts/pie' route.
+# --- 5. Test Market Share Chart Data Endpoint ---
+# This endpoint returns a detailed data structure for market share analysis.
+echo "--- Testing Market Share Chart Data Endpoint ---"
+# Accessing the market share chart via the '/api/charts/pie' route.
 #
 # Expected response structure:
 # {
 #     "success": true,
-#     "chartId": "slm-usage-distribution",
-#     "title": "SLM Usage Distribution",
-#     "description": "Proportion of usage across different language models",
-#     "chartType": "pie",
-#     "data": [...], // Array of slice objects
-#     "timestamp": "ISO8601_timestamp"
+#     "chartId": "market-share-2025",
+#     "title": "Market Share Distribution 2025",
+#     // ... and other detailed fields
 # }
 curl -X GET "${BASE_URL}/api/charts/pie" # <-- Changed URL path here
 echo ""

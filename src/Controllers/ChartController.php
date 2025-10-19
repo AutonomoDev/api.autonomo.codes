@@ -11,10 +11,8 @@ use Pecee\SimpleRouter\SimpleRouter;
  * ## API Endpoints Provided:
  *
  * - `GET /api/charts/{id}`: Retrieves data for a specific chart identified by `{id}`.
- *   - Example: `GET /api/charts/slm-proficiency-v0-v13`
- *   - Example: `GET /api/charts/slm-usage-distribution` (though a dedicated route `/chart/pie` is also provided)
- *
- * - `GET /chart/pie`: A dedicated endpoint specifically for the SLM Usage Distribution pie chart.
+ *   - Example: `GET /api/charts/slm-proficiency`
+ *   - Example: `GET /api/charts/pie`
  *
  * ## General Response Structure:
  *
@@ -25,10 +23,8 @@ use Pecee\SimpleRouter\SimpleRouter;
  *     "chartId": "unique-chart-identifier",
  *     "title": "Chart Title",
  *     "description": "A brief explanation of the chart.",
- *     "chartType": "bar|pie|line|...", // Optional but recommended for frontend rendering hints.
  *     "data": [...], // Array of data points or slices formatted for the specific chart type.
- *     "xAxis": {...}, // Optional: Configuration for the X-axis (typically for bar/line charts).
- *     "yAxis": {...}, // Optional: Configuration for the Y-axis (typically for bar/line charts).
+ *     // ... other chart-specific properties
  *     "timestamp": "2023-10-27T10:30:00+00:00" // ISO 8601 formatted timestamp of data generation.
  * }
  * ```
@@ -49,25 +45,43 @@ class ChartController
     private const SLM_PROFICIENCY_DESCRIPTION = 'Performance comparison across different language models';
 
     // Constants for the new SLM Usage Distribution chart (Pie Chart)
-    // CHANGED TO PUBLIC: Made public so it can be referenced in routes.php
     public const SLM_USAGE_PIE_ID = 'slm-usage-distribution';
     private const SLM_USAGE_PIE_TITLE = 'SLM Usage Distribution';
     private const SLM_USAGE_PIE_DESCRIPTION = 'Proportion of usage across different language models';
 
     /**
-     * Retrieves chart data based on the provided chart ID.
-     * This method acts as a dispatcher for different chart types. It is intended
-     * to be called via routes like `/api/charts/{id}`.
+     * Public endpoint handler for chart requests.
+     * This method fetches the appropriate chart data and returns it as a JSON string.
+     * It handles the JSON encoding and header setting to prevent conversion errors.
      *
-     * @param string $id The unique identifier for the chart (e.g., 'slm-proficiency-v0-v13', 'slm-usage-distribution').
-     * @return array The chart data in JSON-compatible array format or an error response.
+     * @param string $id The unique identifier for the chart.
+     * @return string The chart data as a JSON response.
      */
-    public function getChart(string $id): array
+    public function getChart(string $id): string
+    {
+        // Set the content type header to indicate a JSON response.
+        SimpleRouter::response()->header('Content-Type: application/json');
+
+        // Get the chart data as a PHP array.
+        $data = $this->getChartData($id);
+
+        // Encode the array into a JSON string and return it.
+        return json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+    }
+
+    /**
+     * Retrieves chart data based on the provided chart ID.
+     * This method acts as a dispatcher for different chart types, returning a PHP array.
+     *
+     * @param string $id The unique identifier for the chart (e.g., 'slm-proficiency', 'pie').
+     * @return array The chart data in a PHP array format.
+     */
+    private function getChartData(string $id): array
     {
         return match ($id) {
-            self::SLM_PROFICIENCY_ID => $this->getSlmProficiencyEvolution(),
+            self::SLM_PROFICIENCY_ID, 'slm-proficiency' => $this->getSlmProficiencyEvolution(),
             self::SLM_USAGE_PIE_ID   => $this->getSlmUsageDistribution(),
-            // Add other chart IDs and their corresponding methods here if needed
+            'pie'                    => $this->getMarketShareDistribution(),
             default => $this->handleChartNotFound(),
         };
     }
@@ -88,241 +102,219 @@ class ChartController
     }
 
     /**
+     * Randomizes a numeric value by a given percentage.
+     *
+     * This helper function takes a number and applies a random variance to it,
+     * returning a new number within the range of [value * (1 - percentage), value * (1 + percentage)].
+     * It intelligently handles integers and floats, rounding the result appropriately.
+     *
+     * @param int|float $value The original numeric value.
+     * @param float $percentage The percentage to vary by (e.g., 0.33 for +/- 33%).
+     * @param ?int $precision The number of decimal places for the result. If null, integers are returned as integers, and floats are not rounded.
+     * @return int|float The randomized value.
+     */
+    private function randomizeValue(int|float $value, float $percentage = 0.33, ?int $precision = null): int|float
+    {
+        if ($value == 0) {
+            return 0;
+        }
+        // Calculate a random factor between (1 - $percentage) and (1 + $percentage).
+        // mt_rand() / mt_getrandmax() generates a float between 0 and 1.
+        $randomFactor = 1 + ((mt_rand() / mt_getrandmax()) * (2 * $percentage) - $percentage);
+
+        $newValue = $value * $randomFactor;
+
+        // Handle rounding based on precision and original type
+        if (is_int($precision)) {
+            return round($newValue, $precision);
+        }
+
+        // If no precision is set, return int for original int, and raw float otherwise.
+        return is_int($value) ? (int) round($newValue) : $newValue;
+    }
+
+    /**
      * Generates data for the SLM Proficiency Evolution chart.
-     * This data is typically suitable for bar or line charts, showing performance scores.
      *
      * @return array Chart data.
      */
     private function getSlmProficiencyEvolution(): array
     {
         try {
-            $response = [
+            return [
                 'success' => true,
                 'chartId' => self::SLM_PROFICIENCY_ID,
                 'title' => self::SLM_PROFICIENCY_TITLE,
                 'description' => self::SLM_PROFICIENCY_DESCRIPTION,
-                'data' => $this->getProficiencyModels(), // Data for the proficiency chart
+                'data' => $this->getProficiencyModels(),
                 'xAxis' => [
-                    'label' => 'Score Change',
-                    'unit' => 'points',
-                    'min' => -15,
-                    'max' => 25
+                    'label' => 'Score Change', 'unit' => 'points', 'min' => -15, 'max' => 25
                 ],
                 'yAxis' => [
-                    'label' => 'Model',
-                    'type' => 'category'
+                    'label' => 'Model', 'type' => 'category'
                 ],
-                'timestamp' => date('c') // ISO 8601 date
+                'timestamp' => date('c')
             ];
-
-            return $response;
-
         } catch (\Exception $e) {
-            // Log the error for debugging
-            error_log('SLM Proficiency Chart data generation error: ' . $e->getMessage());
-
-            // Return a standardized error response
             SimpleRouter::response()->httpCode(500);
-            return [
-                'success' => false,
-                'message' => 'Could not retrieve SLM proficiency chart data at this time.'
-            ];
+            return ['success' => false, 'message' => 'Could not retrieve SLM proficiency chart data at this time.'];
         }
     }
 
     /**
+     * Generates data for the Market Share Distribution chart using a raw JSON heredoc.
+     * This method now decodes the base data, randomizes its numeric values,
+     * and recalculates totals and percentages to maintain data consistency.
+     *
+     * @return array Chart data.
+     */
+    private function getMarketShareDistribution(): array
+    {
+        try {
+            // Use a heredoc to store the raw base JSON string.
+            $rawJson = <<<JSON
+{
+  "success": true,
+  "chartId": "market-share-2025",
+  "title": "Market Share Distribution 2025",
+  "description": "Product market share breakdown by category",
+  "totalValue": 1000000,
+  "currency": "USD",
+  "data": [
+    { "id": "1", "label": "Product A", "value": 350000, "percentage": 35, "color": "#2563EB", "details": { "revenue": 350000, "growth": 12.5, "customers": 1500, "region": "North America", "trend": "increasing" }},
+    { "id": "2", "label": "Product B", "value": 250000, "percentage": 25, "color": "#F97316", "details": { "revenue": 250000, "growth": 8.2, "customers": 1200, "region": "Europe", "trend": "increasing" }},
+    { "id": "3", "label": "Product C", "value": 200000, "percentage": 20, "color": "#10B981", "details": { "revenue": 200000, "growth": 15.1, "customers": 800, "region": "Asia", "trend": "strong-increasing" }},
+    { "id": "4", "label": "Others", "value": 200000, "percentage": 20, "color": "#6B7280", "details": { "revenue": 200000, "growth": 5.0, "customers": 700, "region": "RoW", "trend": "stable" }}
+  ],
+  "metadata": { "totalCustomers": 4200, "averageGrowth": 10.45, "lastUpdated": "2025-10-16T12:00:00+00:00" },
+  "timestamp": "2025-10-16T12:00:00+00:00"
+}
+JSON;
+
+            // Decode the JSON string into an associative PHP array.
+            $chartData = json_decode($rawJson, true);
+
+            // 1. Randomize the "source of truth" values for each data slice.
+            foreach ($chartData['data'] as &$slice) {
+                // Randomize revenue, which is the base for value and percentage.
+                $slice['details']['revenue'] = $this->randomizeValue($slice['details']['revenue']);
+                $slice['value'] = $slice['details']['revenue']; // Sync value with new revenue.
+                // Randomize other independent metrics.
+                $slice['details']['growth'] = $this->randomizeValue($slice['details']['growth'], 0.33, 1);
+                $slice['details']['customers'] = $this->randomizeValue($slice['details']['customers']);
+            }
+            unset($slice); // Unset reference to prevent side-effects.
+
+            // 2. Recalculate totals and derived metrics from the new randomized values.
+            $totalRevenue = array_sum(array_column($chartData['data'], 'value'));
+            $totalCustomers = array_sum(array_column(array_column($chartData['data'], 'details'), 'customers'));
+            $totalWeightedGrowth = array_reduce($chartData['data'], function ($carry, $item) {
+                return $carry + ($item['details']['growth'] * $item['value']);
+            }, 0);
+
+            // 3. Update top-level and metadata totals.
+            $chartData['totalValue'] = $totalRevenue;
+            $chartData['metadata']['totalCustomers'] = $totalCustomers;
+            $chartData['metadata']['averageGrowth'] = ($totalRevenue > 0) ? round($totalWeightedGrowth / $totalRevenue, 2) : 0;
+
+            // 4. Recalculate percentages for each slice based on the new total.
+            foreach ($chartData['data'] as &$slice) {
+                $slice['percentage'] = ($totalRevenue > 0) ? round(($slice['value'] / $totalRevenue * 100), 2) : 0;
+            }
+            unset($slice);
+
+            // 5. Update timestamps to reflect new data generation.
+            $now = date('c');
+            $chartData['timestamp'] = $now;
+            $chartData['metadata']['lastUpdated'] = $now;
+
+            return $chartData;
+
+        } catch (\Exception $e) {
+            SimpleRouter::response()->httpCode(500);
+            return ['success' => false, 'message' => 'Could not retrieve market share chart data at this time.'];
+        }
+    }
+
+
+    /**
      * Generates data for the SLM Usage Distribution pie chart.
-     * This method is designed to provide data specifically formatted for pie chart visualization.
-     * It is intended to be called via a dedicated route like `/chart/pie`.
-     *
-     * ## SLM Usage Pie Chart Data Structure:
-     *
-     * ```json
-     * {
-     *     "success": true,
-     *     "chartId": "slm-usage-distribution",
-     *     "title": "SLM Usage Distribution",
-     *     "description": "Proportion of usage across different language models",
-     *     "chartType": "pie",
-     *     "data": [
-     *         {
-     *             "id": "usage-1",        // Unique identifier for the data point/slice.
-     *             "label": "qwen3_coder_30b", // Display label for the slice.
-     *             "value": 350,           // Numeric value determining the slice size.
-     *             "color": "#FF6384",     // Optional: Hex color code for the slice.
-     *             "metadata": {           // Optional: Additional data associated with the slice.
-     *                 "modelSize": "30b",
-     *                 "category": "coder"
-     *             }
-     *         },
-     *         // ... more slices ...
-     *     ],
-     *     "timestamp": "2023-10-27T10:30:00+00:00"
-     * }
-     * ```
      *
      * @return array Chart data formatted for a pie chart.
      */
     private function getSlmUsageDistribution(): array
     {
         try {
-            $response = [
-                'success' => true,
-                'chartId' => self::SLM_USAGE_PIE_ID,
-                'title' => self::SLM_USAGE_PIE_TITLE,
-                'description' => self::SLM_USAGE_PIE_DESCRIPTION,
-                'chartType' => 'pie', // Explicitly state chart type for frontend rendering
-                'data' => $this->getUsageData(), // Data formatted for a pie chart
-                // xAxis/yAxis are typically not needed or used differently for pie charts
-                'timestamp' => date('c') // ISO 8601 date
-            ];
-
-            return $response;
-
-        } catch (\Exception $e) {
-            // Log the error for debugging
-            error_log('SLM Usage Pie Chart data generation error: ' . $e->getMessage());
-
-            // Return a standardized error response
-            SimpleRouter::response()->httpCode(500);
             return [
-                'success' => false,
-                'message' => 'Could not retrieve SLM usage pie chart data at this time.'
+                'success' => true, 'chartId' => self::SLM_USAGE_PIE_ID, 'title' => self::SLM_USAGE_PIE_TITLE,
+                'description' => self::SLM_USAGE_PIE_DESCRIPTION, 'chartType' => 'pie',
+                'data' => $this->getUsageData(), 'timestamp' => date('c')
             ];
+        } catch (\Exception $e) {
+            SimpleRouter::response()->httpCode(500);
+            return ['success' => false, 'message' => 'Could not retrieve SLM usage pie chart data at this time.'];
         }
     }
 
     /**
-     * Generates the dynamic data for the SLM proficiency chart models with random values.
-     * In a real application, this would likely fetch data from a database.
+     * Provides base data for the SLM proficiency chart and applies randomization.
      *
-     * @return array Array of model data objects suitable for proficiency charts.
+     * @return array Array of model data objects.
      */
     private function getProficiencyModels(): array
     {
-        $minValue = 10.0;
-        $maxValue = 25.0;
-        $precisionFactor = 10.0; // For one decimal place
-
-        // Generate random values
-        $value1 = (int) floor(mt_rand((int) ($minValue * $precisionFactor), $maxValue * $precisionFactor)) / $precisionFactor;
-        $value2 = (int) floor(mt_rand((int) ($minValue * $precisionFactor), $maxValue * $precisionFactor)) / $precisionFactor;
-        $value3 = (int) floor(mt_rand((int) ($minValue * $precisionFactor), (int) $maxValue * $precisionFactor)) / $precisionFactor;
-
-        return [
-            [
-                'id' => '1',
-                'label' => 'qwen3_coder_30b',
-                'value' => $value1, // Dynamic random value
-                'color' => '#4A90E2', // Example blue
-                'metadata' => ['modelSize' => '30b', 'version' => 'v13', 'category' => 'coder']
-            ],
-            [
-                'id' => '2',
-                'label' => 'openai_gpt_oss_20b',
-                'value' => $value2, // Dynamic random value
-                'color' => '#50E3C2', // Example teal
-                'metadata' => ['modelSize' => '20b', 'version' => 'v13', 'category' => 'general']
-            ],
-            [
-                'id' => '3',
-                'label' => 'microsoft_phi4_reasoning_14b',
-                'value' => $value3, // Dynamic random value
-                'color' => '#B8E986', // Example green
-                'metadata' => ['modelSize' => '14b', 'version' => 'v13', 'category' => 'reasoning']
-            ]
+        // Define the base, static data for the models.
+        $models = [
+            ['id' => '1', 'label' => 'qwen3_coder_30b', 'value' => 21.5, 'color' => '#4A90E2', 'metadata' => ['modelSize' => '30b', 'version' => 'v13', 'category' => 'coder']],
+            ['id' => '2', 'label' => 'openai_gpt_oss_20b', 'value' => 18.2, 'color' => '#50E3C2', 'metadata' => ['modelSize' => '20b', 'version' => 'v13', 'category' => 'general']],
+            ['id' => '3', 'label' => 'microsoft_phi4_reasoning_14b', 'value' => 15.8, 'color' => '#B8E986', 'metadata' => ['modelSize' => '14b', 'version' => 'v13', 'category' => 'reasoning']]
         ];
+
+        // Apply randomization to each model's value on every request.
+        foreach ($models as &$model) {
+            $model['value'] = $this->randomizeValue($model['value'], 0.33, 1);
+        }
+
+        return $models;
     }
 
     /**
-     * Generates the dynamic data for the SLM usage pie chart with random values.
-     * This data represents usage counts or proportions suitable for pie slices.
-     * In a real application, this would likely fetch data from a database.
+     * Provides base data for the SLM usage pie chart and applies randomization.
      *
      * @return array Array of model data objects for pie chart slices.
      */
     private function getUsageData(): array
     {
-        // Define the range for random usage counts (e.g., 50 to 500)
-        $minCount = 50;
-        $maxCount = 500;
-
-        // Generate random counts for different models
-        $count1 = mt_rand($minCount, $maxCount);
-        $count2 = mt_rand($minCount, $maxCount);
-        $count3 = mt_rand($minCount, $maxCount);
-        $count4 = mt_rand($minCount, $maxCount); // Added another model for better visualization
-
-        // Define models and their associated data for the pie chart.
-        // Using distinct colors is generally recommended for pie charts.
-        return [
-            [
-                'id' => 'usage-1',
-                'label' => 'qwen3_coder_30b',
-                'value' => $count1, // Represents usage count
-                'color' => '#FF6384', // Example red/pink
-                'metadata' => ['modelSize' => '30b', 'category' => 'coder']
-            ],
-            [
-                'id' => 'usage-2',
-                'label' => 'openai_gpt_oss_20b',
-                'value' => $count2, // Represents usage count
-                'color' => '#36A2EB', // Example blue
-                'metadata' => ['modelSize' => '20b', 'category' => 'general']
-            ],
-            [
-                'id' => 'usage-3',
-                'label' => 'microsoft_phi4_reasoning_14b',
-                'value' => $count3, // Represents usage count
-                'color' => '#FFCE56', // Example yellow
-                'metadata' => ['modelSize' => '14b', 'category' => 'reasoning']
-            ],
-             [
-                'id' => 'usage-4',
-                'label' => 'google_gemini_pro_12b', // Example additional model
-                'value' => $count4, // Represents usage count
-                'color' => '#8A2BE2', // Example purple
-                'metadata' => ['modelSize' => '12b', 'category' => 'multimodal']
-            ]
+        // Define the base, static data for the slices.
+        $data = [
+            ['id' => 'usage-1', 'label' => 'qwen3_coder_30b', 'value' => 420, 'color' => '#FF6384', 'metadata' => ['modelSize' => '30b', 'category' => 'coder']],
+            ['id' => 'usage-2', 'label' => 'openai_gpt_oss_20b', 'value' => 310, 'color' => '#36A2EB', 'metadata' => ['modelSize' => '20b', 'category' => 'general']],
+            ['id' => 'usage-3', 'label' => 'microsoft_phi4_reasoning_14b', 'value' => 150, 'color' => '#FFCE56', 'metadata' => ['modelSize' => '14b', 'category' => 'reasoning']],
+            ['id' => 'usage-4', 'label' => 'google_gemini_pro_12b', 'value' => 120, 'color' => '#8A2BE2', 'metadata' => ['modelSize' => '12b', 'category' => 'multimodal']]
         ];
+
+        // Apply randomization to each slice's value on every request.
+        foreach ($data as &$slice) {
+            $slice['value'] = $this->randomizeValue($slice['value']);
+        }
+
+        return $data;
     }
 }
 
 /*
  * === Routing Configuration for Chart Endpoints ===
  *
- * To ensure the chart endpoints function correctly, especially the new `/chart/pie` endpoint,
- * you need to configure your routes in `src/routes.php` (which is included by `public/index.php`).
- *
- * 1.  **Generic Chart Endpoint (`/api/charts/{id}`)**:
- *     This route is suitable for fetching chart data by its ID.
- *     If you have a generic route like this, it will handle `slm-proficiency-v0-v13` and `slm-usage-distribution`.
+ * The controller now handles JSON encoding itself, so the route definition is simple.
+ * This configuration correctly calls the public `getChart` method, which returns a
+ * valid JSON string, preventing any "Array to string conversion" errors.
  *
  *     ```php
  *     // Example in src/routes.php
  *     use Pecee\SimpleRouter\SimpleRouter;
  *     use Autonomo\DigitalPartner\Controllers\ChartController;
  *
- *     // Handles requests like /api/charts/slm-proficiency-v0-v13 or /api/charts/slm-usage-distribution
+ *     // This route now works correctly.
  *     SimpleRouter::get('/api/charts/{id}', [ChartController::class, 'getChart']);
  *     ```
- *
- * 2.  **Dedicated Pie Chart Endpoint (`/chart/pie`)**:
- *     As requested, this provides a direct URL for the pie chart. This route will explicitly call
- *     the `getChart` method with the correct internal ID for the pie chart.
- *
- *     ```php
- *     // Example in src/routes.php (add this below other routes)
- *     use Pecee\SimpleRouter\SimpleRouter;
- *     use Autonomo\DigitalPartner\Controllers\ChartController;
- *
- *     SimpleRouter::get('/chart/pie', function() {
- *         $controller = new ChartController();
- *         // Call the getChart method with the specific ID for the pie chart.
- *         // The getChart method itself maps this ID ('slm-usage-distribution') to the correct handler.
- *         return $controller->getChart(ChartController::SLM_USAGE_PIE_ID);
- *     });
- *     ```
- *
- * Make sure these routes are defined in your `src/routes.php` file for the application to function as expected.
  */

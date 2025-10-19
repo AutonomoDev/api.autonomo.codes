@@ -4,7 +4,7 @@
 use Pecee\SimpleRouter\SimpleRouter;
 // Import controllers using their full namespaces
 use Autonomo\DigitalPartner\Controllers\VolunteerController;
-use Autonomo\DigitalPartner\Controllers\ChartController; // Import the ChartController
+use Autonomo\DigitalPartner\Controllers\ChartController;
 
 SimpleRouter::get('/', function () {
     response()->header('Content-Type: text/html');
@@ -17,7 +17,7 @@ SimpleRouter::get('/', function () {
 SimpleRouter::post('/ai-companion/signup', function() {
     $controller = new VolunteerController(); // Default namespace is used here based on index.php
     $result = $controller->register();
-    
+
     response()->header('Content-Type: application/json');
     return json_encode($result);
 });
@@ -27,7 +27,7 @@ SimpleRouter::post('/ai-companion/signup', function() {
 SimpleRouter::get('/api/volunteer-stats', function() {
     $controller = new VolunteerController(); // Default namespace is used here based on index.php
     $result = $controller->getStats();
-    
+
     response()->header('Content-Type: application/json');
     return json_encode($result);
 });
