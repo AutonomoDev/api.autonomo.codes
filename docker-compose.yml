@@ -1,0 +1,30 @@
+# ==== ./docker-compose.yml ====
+version: '3.8'
+
+services:
+  waha:
+    image: devlikeapro/waha
+    container_name: waha_amd
+    network_mode: "host"
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - waha_data:/data
+    env_file:
+      - .env
+
+  waha_bridge:
+    image: phpexperts/web:nginx-php8.4
+    container_name: waha_bridge
+    #restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      - .:/var/www:delegated
+      - ./docker/web:/etc/nginx/custom
+    ports:
+      - 80:80
+
+volumes:
+  waha_data:
