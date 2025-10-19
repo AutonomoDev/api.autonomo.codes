@@ -60,3 +60,6 @@ SimpleRouter::get('/charts/pie', function() { // <-- Changed URL path here
     // The getChart method will then dispatch to the correct internal handler (getSlmUsageDistribution).
     return $controller->getChart(ChartController::SLM_USAGE_PIE_ID);
 });
+
+
+SimpleRouter::post('/webhook/whatsapp', [WhatsAppWebhookController::class, 'handle']);
