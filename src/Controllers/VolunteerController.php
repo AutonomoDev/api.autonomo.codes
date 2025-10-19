@@ -1,7 +1,7 @@
 <?php declare(strict_types=1);
 
 // ==== ./src/Controllers/VolunteerController.php ====
-namespace Autonomo\DigitalPartner\Controllers;
+namespace Autonomo\API\Controllers;
 
 use Pecee\Http\Response;
 use Pecee\SimpleRouter\SimpleRouter;

@@ -1,6 +1,6 @@
 <?php
 // ==== ./src/Controllers/ChartController.php ====
-namespace Autonomo\DigitalPartner\Controllers;
+namespace Autonomo\API\Controllers;
 
 use Pecee\SimpleRouter\SimpleRouter;
 

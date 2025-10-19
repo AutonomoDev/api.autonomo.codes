@@ -3,8 +3,8 @@
 
 use Pecee\SimpleRouter\SimpleRouter;
 // Import controllers using their full namespaces
-use Autonomo\DigitalPartner\Controllers\VolunteerController;
-use Autonomo\DigitalPartner\Controllers\ChartController;
+use Autonomo\API\Controllers\VolunteerController;
+use Autonomo\API\Controllers\ChartController;
 
 SimpleRouter::get('/', function () {
     response()->header('Content-Type: text/html');
@@ -60,26 +60,3 @@ SimpleRouter::get('/api/charts/pie', function() { // <-- Changed URL path here
     // The getChart method will then dispatch to the correct internal handler (getSlmUsageDistribution).
     return $controller->getChart(ChartController::SLM_USAGE_PIE_ID);
 });
-
-/*
- * Note on Namespaces:
- * The public/index.php file sets `SimpleRouter::setDefaultNamespace('Autonomo\DigitalPartner');`.
- * Since your controllers (VolunteerController, ChartController) are in `Autonomo\DigitalPartner\Controllers`,
- * you can use the controller class names directly in route definitions IF the default namespace was set to 'Autonomo\DigitalPartner\Controllers'.
- *
- * However, to ensure maximum compatibility and clarity, especially if the default namespace might change or if controllers were nested differently,
- * explicitly using the fully qualified namespace like `Autonomo\DigitalPartner\Controllers\ChartController::class` is often safer.
- *
- * For the provided structure in `index.php` and your controllers, using the controller names directly like `VolunteerController` and `ChartController`
- * within the `routes.php` file might require adjusting `SimpleRouter::setDefaultNamespace` in `index.php` to `Autonomo\DigitalPartner\Controllers`.
- *
- * For this example, I've kept the direct class names (e.g., `VolunteerController`, `ChartController`) assuming the `index.php`
- * correctly resolves them (or implicitly using the default namespace). If you encounter namespace issues,
- * uncomment the `use` statements with full namespaces and ensure `SimpleRouter::setDefaultNamespace('Autonomo\DigitalPartner\Controllers');` is set in `index.php`.
- *
- * Example adjustment if needed:
- * In index.php: `SimpleRouter::setDefaultNamespace('Autonomo\DigitalPartner\Controllers');`
- * Then in routes.php:
- * SimpleRouter::post('/ai-companion/signup', [VolunteerController::class, 'register']); // This should now work
- * SimpleRouter::get('/api/charts/{id}', [ChartController::class, 'getChart']); // This should now work
- */
