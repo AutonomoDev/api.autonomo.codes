@@ -1,9 +1,12 @@
+// ==== ./src/WAHA/Controllers/WhatsAppWebhookController.php ====
 <?php
 
 namespace Autonomo\API\WAHA\Controllers;
 
 use Autonomo\API\WAHA\Services\WhatsAppService;
-use Autonomo\API\WAHA\Services\LLMService;
+// MODIFIED: We are now using our new, purpose-built LlmService
+use Autonomo\API\WAHA\Services\LlmService;
+use Exception;
 
 class WhatsAppWebhookController
 {
@@ -11,23 +14,58 @@ class WhatsAppWebhookController
     {
         $raw = file_get_contents('php://input');
         $data = json_decode($raw, true);
-        $msg = $data['message'] ?? null;
 
-        if (!$msg || empty($msg['text']) || empty($msg['from'])) {
-            http_response_code(400);
-            echo json_encode(['error' => 'Invalid payload']);
+        error_log("WAHA Webhook received: " . $raw);
+
+        // 1. Validate the event and payload structure.
+        if (
+            ($data['event'] ?? null) !== 'message' ||
+            !isset($data['payload']) || !is_array($data['payload'])
+        ) {
+            http_response_code(200);
+            echo json_encode(['status' => 'ignored_event']);
             return;
         }
 
-        $chatId = $msg['from'];
-        $text = trim($msg['text']);
+        $payload = $data['payload'];
+        $chatId = $payload['from'] ?? null;
+        $messageId = $payload['id'] ?? null;
+        $text = trim($payload['body'] ?? '');
+        $isFromMe = $payload['fromMe'] ?? false;
 
-        $llm = new LLMService();
-        $reply = $llm->getReply($text);
+        // 2. Ignore invalid, empty, or self-sent messages.
+        if (!$chatId || !$messageId || $isFromMe || empty($text)) {
+            http_response_code(200);
+            echo json_encode(['status' => 'ignored_invalid_or_self_message']);
+            return;
+        }
 
         $wa = new WhatsAppService();
-        $wa->sendText($chatId, $reply);
 
-        echo json_encode(['status' => 'ok']);
+        try {
+            // (UX) React to show the message is being processed.
+            $wa->sendReaction($messageId, '⏳');
+
+            // 3. Get the AI reply from our new LlmService.
+            $llm = new LlmService();
+            $reply = $llm->getReply($text);
+
+            // 4. Send the reply using the WhatsAppService.
+            $wa->sendText($chatId, $reply, $messageId);
+
+            // (UX) Update reaction to show the task is complete.
+            $wa->sendReaction($messageId, '✅');
+
+            echo json_encode(['status' => 'ok', 'reply_sent' => true]);
+
+        } catch (Exception $e) {
+            error_log("Error in WhatsAppWebhookController: " . $e->getMessage());
+
+            // Notify the user of an error.
+            $wa->sendText($chatId, "I'm sorry, I encountered a server error. Please try again later.", $messageId);
+
+            http_response_code(500);
+            echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
+        }
     }
 }

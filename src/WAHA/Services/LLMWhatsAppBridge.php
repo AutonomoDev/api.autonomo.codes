@@ -1,4 +1,5 @@
 <?php
+// ==== ./src/WAHA/Services/LLMWhatsAppBridge.php ====
 namespace Autonomo\API\WAHA\Services;
 
 use Autonomo\AISpeaker\LLMSpeaker;
