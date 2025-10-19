@@ -2,8 +2,8 @@
 // ==== ./src/WAHA/Services/LLMWhatsAppBridge.php ====
 namespace Autonomo\API\WAHA\Services;
 
-use Autonomo\AISpeaker\LLMSpeaker;
-use PHPExperts\RESTSpeaker\RESTAuth;
+use Autonomo\AiSpeaker\LLMSpeaker;
+use Autonomo\API\WAHA\Auth\WAHAAuth;
 use PHPExperts\RESTSpeaker\RESTSpeaker;
 
 
@@ -40,7 +40,7 @@ class LLMWhatsAppBridge
         $dotenv->safeLoad(); // use load() for strict mode
     }
 
-    public function __construct(LLMSpeaker $ai = null)
+    public function __construct(?LLMSpeaker $ai = null)
     {
         $this->ai = $ai ?? new LLMSpeaker('Anthropic');
 
@@ -52,14 +52,16 @@ class LLMWhatsAppBridge
      * @return array
      * @throws \Exception
      */
-    public function chat(array $prompt): array
+    public function chat_bad(array $prompt, $chatId): array
     {
+        file_put_contents('/tmp/whatsapp.log', print_r([$chatId, $prompt], true) . "\n", FILE_APPEND);
+
         // 1. Get the LLM response text (using your hardcoded data)
-        $llmResponse = unserialize(<<<TXT
-a:8:{s:5:"model";s:25:"claude-3-5-haiku-20241022";s:2:"id";s:28:"msg_01MPj19eusPavhfd5k5cMmVp";s:4:"type";s:7:"message";s:4:"role";s:9:"assistant";s:7:"content";a:1:{i:0;O:8:"stdClass":2:{s:4:"type";s:4:"text";s:4:"text";s:430:"Good day, Mr. Eltawil. I'm sorry to hear about the issue with your toilet in apartment 4502. I'll log a repair request right away. Our maintenance technician, Rajesh Sharma, will come to inspect and repair the toilet. He will be available tomorrow between 10:00 AM and 12:00 PM. His contact number is +971 50 623 8741. Please ensure someone is present in the apartment during this time. Is there anything else I can help you with?";}}s:11:"stop_reason";s:8:"end_turn";s:13:"stop_sequence";N;s:5:"usage";O:8:"stdClass":6:{s:12:"input_tokens";i:115;s:27:"cache_creation_input_tokens";i:0;s:23:"cache_read_input_tokens";i:0;s:14:"cache_creation";O:8:"stdClass":2:{s:25:"ephemeral_5m_input_tokens";i:0;s:25:"ephemeral_1h_input_tokens";i:0;}s:13:"output_tokens";i:116;s:12:"service_tier";s:8:"standard";}}
-TXT
-        );
-        $textToSend = $llmResponse['content'][0]->text;
+//        $llmResponse = unserialize(<<<TXT
+//a:8:{s:5:"model";s:25:"claude-3-5-haiku-20241022";s:2:"id";s:28:"msg_01MPj19eusPavhfd5k5cMmVp";s:4:"type";s:7:"message";s:4:"role";s:9:"assistant";s:7:"content";a:1:{i:0;O:8:"stdClass":2:{s:4:"type";s:4:"text";s:4:"text";s:430:"Good day, Mr. Eltawil. I'm sorry to hear about the issue with your toilet in apartment 4502. I'll log a repair request right away. Our maintenance technician, Rajesh Sharma, will come to inspect and repair the toilet. He will be available tomorrow between 10:00 AM and 12:00 PM. His contact number is +971 50 623 8741. Please ensure someone is present in the apartment during this time. Is there anything else I can help you with?";}}s:11:"stop_reason";s:8:"end_turn";s:13:"stop_sequence";N;s:5:"usage";O:8:"stdClass":6:{s:12:"input_tokens";i:115;s:27:"cache_creation_input_tokens";i:0;s:23:"cache_read_input_tokens";i:0;s:14:"cache_creation";O:8:"stdClass":2:{s:25:"ephemeral_5m_input_tokens";i:0;s:25:"ephemeral_1h_input_tokens";i:0;}s:13:"output_tokens";i:116;s:12:"service_tier";s:8:"standard";}}
+//TXT
+//        );
+//        $textToSend = $llmResponse['content'][0]->text;
 
         // 2. Prepare the request data
         $apiKey = env('WAHA_API_KEY');
@@ -68,12 +70,18 @@ TXT
         }
 
         $url = 'http://localhost:3000/api/sendText';
+        $url = 'http://172.17.0.1:3000/api/sendText';
+
+        $phone = substr($chatId, 0, strpos($str, '@'));
 
         $payload = [
-            'chatId' => '971543998492@c.us',
-            'text' => $textToSend,
+//            'chatId' => '971543998492@c.us',
+//            'chatId' => '971585364477@c.us',
+            'chatId' => $chatId,
+            'text' => "Incoming phone number ($phone) --- \n" . implode("\n", $prompt),
             'session' => 'default',
         ];
+
 
         // 3. Set up the cURL request
         $ch = curl_init();
@@ -125,7 +133,7 @@ TXT
             $finalResponse = json_decode($responseBody, true);
 
             echo "--- SUCCESS: Received Response ---\n";
-            dump($finalResponse);
+//            dump($finalResponse);
             echo "--------------------------------\n";
 
         } finally {
@@ -137,16 +145,46 @@ TXT
     }
 
     /**
+     * @param array $prompt
+     * @return array
+     * @throws \Exception
+     */
+    public function chat(array $prompt, $chatId): array
+    {
+        file_put_contents('/tmp/whatsapp-2.log', print_r([$chatId, $prompt], true) . "\n", FILE_APPEND);
+
+        // 1. Get the LLM response text (using your hardcoded data)
+//        $llmResponse = unserialize(<<<TXT
+//a:8:{s:5:"model";s:25:"claude-3-5-haiku-20241022";s:2:"id";s:28:"msg_01MPj19eusPavhfd5k5cMmVp";s:4:"type";s:7:"message";s:4:"role";s:9:"assistant";s:7:"content";a:1:{i:0;O:8:"stdClass":2:{s:4:"type";s:4:"text";s:4:"text";s:430:"Good day, Mr. Eltawil. I'm sorry to hear about the issue with your toilet in apartment 4502. I'll log a repair request right away. Our maintenance technician, Rajesh Sharma, will come to inspect and repair the toilet. He will be available tomorrow between 10:00 AM and 12:00 PM. His contact number is +971 50 623 8741. Please ensure someone is present in the apartment during this time. Is there anything else I can help you with?";}}s:11:"stop_reason";s:8:"end_turn";s:13:"stop_sequence";N;s:5:"usage";O:8:"stdClass":6:{s:12:"input_tokens";i:115;s:27:"cache_creation_input_tokens";i:0;s:23:"cache_read_input_tokens";i:0;s:14:"cache_creation";O:8:"stdClass":2:{s:25:"ephemeral_5m_input_tokens";i:0;s:25:"ephemeral_1h_input_tokens";i:0;}s:13:"output_tokens";i:116;s:12:"service_tier";s:8:"standard";}}
+//TXT
+//        );
+//        $textToSend = $llmResponse['content'][0]->text;
+
+        // 2. Prepare the request data
+        $apiKey = env('WAHA_API_KEY');
+        if (!$apiKey) {
+            throw new \RuntimeException('WAHA_API_KEY is not set in your .env file.');
+        }
+
+        $url = 'http://localhost:3000/api/sendText';
+        $url = 'http://172.17.0.1:3000/api/sendText';
+
+        $phone = substr($chatId, 0, strpos($chatId, '@'));
+
+        $actualPrompt = "Incoming phone number ($phone) --- \n" . implode("\n", $prompt);
+        $response = $this->ai->chat([['role' => 'user', 'content' => $actualPrompt]]);
+        file_put_contents('/tmp/llm-reply-' . time() . '.log', print_r($response, true) . "\n", FILE_APPEND);
+
+        return $response;
+    }
+
+    /**
      * @param string[] $prompt
      * @return array
      * @throws \Exception
      */
-    public function chat_RestSpeaker(array $prompt): array
+    public function chat_rest(array $prompt): array
     {
-        $response = unserialize(<<<TXT
-a:8:{s:5:"model";s:25:"claude-3-5-haiku-20241022";s:2:"id";s:28:"msg_01MPj19eusPavhfd5k5cMmVp";s:4:"type";s:7:"message";s:4:"role";s:9:"assistant";s:7:"content";a:1:{i:0;O:8:"stdClass":2:{s:4:"type";s:4:"text";s:4:"text";s:430:"Good day, Mr. Eltawil. I'm sorry to hear about the issue with your toilet in apartment 4502. I'll log a repair request right away. Our maintenance technician, Rajesh Sharma, will come to inspect and repair the toilet. He will be available tomorrow between 10:00 AM and 12:00 PM. His contact number is +971 50 623 8741. Please ensure someone is present in the apartment during this time. Is there anything else I can help you with?";}}s:11:"stop_reason";s:8:"end_turn";s:13:"stop_sequence";N;s:5:"usage";O:8:"stdClass":6:{s:12:"input_tokens";i:115;s:27:"cache_creation_input_tokens";i:0;s:23:"cache_read_input_tokens";i:0;s:14:"cache_creation";O:8:"stdClass":2:{s:25:"ephemeral_5m_input_tokens";i:0;s:25:"ephemeral_1h_input_tokens";i:0;}s:13:"output_tokens";i:116;s:12:"service_tier";s:8:"standard";}}
-TXT
-);
 //        $response = $this->ai->chat($prompt);
 //        print serialize($response) . "\n"; exit;
         $conversation[0] = $prompt[0];
@@ -155,21 +193,7 @@ TXT
 
         // Create a RESTSpeaker instance pointing to your local WAHA API
         $apiKey = env('WAHA_API_KEY');
-        $auth = new class($apiKey) extends RESTAuth {
-            public function __construct(private string $apiKey)
-            {
-                parent::__construct(self::AUTH_MODE_XAPI);
-            }
-
-            protected function generateXAPITokenOptions(): array
-            {
-                return [
-                    'headers' => [
-                        'X-Api-Key' => $this->apiKey,
-                    ]
-                ];
-            }
-        };
+        $auth = new WAHAAuth($apiKey);
 
         $api = new RESTSpeaker($auth, 'http://localhost:3000');
 

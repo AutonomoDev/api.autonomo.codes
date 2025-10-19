@@ -2,6 +2,7 @@
 // ==== ./src/WAHA/Services/WhatsAppService.php ====
 namespace Autonomo\API\WAHA\Services;
 
+use Autonomo\API\WAHA\Auth\WAHAAuth;
 use PHPExperts\RESTSpeaker\RESTSpeaker;
 use Throwable;
 
@@ -13,30 +14,83 @@ class WhatsAppService
     {
         // NOTE: Make sure WAHA_API_URL and WAHA_API_KEY are correctly set in your environment.
         // The URL should be the base URL of your WAHA container, e.g., http://localhost:3000/api
-        $this->api = new RESTSpeaker(rtrim($_ENV['WAHA_API_URL'], '/') . '/', [
-            'Authorization' => 'Bearer ' . $_ENV['WAHA_API_KEY'],
-        ]);
+        // We'll keep the RESTSpeaker initialized but won't use it for sendText as per new requirements.
+        $auth = new WAHAAuth($_ENV['WAHA_API_KEY']);
+        $this->api = new RESTSpeaker($auth, rtrim($_ENV['WAHA_API_URL'], '/') . '/');
     }
 
     public function sendText(string $chatId, string $text, ?string $replyTo = null): void
     {
+//        $wahaApiUrl = rtrim(env('WAHA_API_URL'), '/');
+        $wahaApiUrl = 'http://localhost:3000';
+        $wahaApiUrl = 'http://172.17.0.1:3000';
+        $apiKey = env('WAHA_API_KEY');
+
         $payload = [
             'chatId' => $chatId,
             'text'   => $text,
+            'session' => 'default', // Hardcoded as per the curl script example
         ];
+//        file_put_contents('/tmp/')print_r(json_encode($payload, JSON_PRETTY_PRINT));
 
         // Allow replying to a specific message ID.
         if ($replyTo) {
             $payload['replyTo'] = $replyTo;
         }
 
+        $jsonData = json_encode($payload, JSON_UNESCAPED_SLASHES);
+//        print_r($jsonData);exit;
+
+        // Escape the JSON data for safe inclusion in the shell command
+        $escapedJsonData = escapeshellarg($jsonData);
+//        $escapedApiKey = escapeshellarg($apiKey);
+
+        // Construct the curl command directly from the shell script provided.
+        // We're replacing the dynamic parts with PHP variables.
+        $command = sprintf(
+            "curl -X 'POST' \\
+              '%s/api/sendText' \\
+              -H 'accept: application/json' \\
+              -H 'Content-Type: application/json' \\
+              -H 'X-Api-Key: %s' \\
+              -d %s",
+            $wahaApiUrl,
+            $apiKey,
+            $escapedJsonData
+        );
+
         try {
-            // Updated endpoint to /send/text based on common WAHA API structure.
-            // Please verify the exact endpoint from your WAHA swagger docs.
-            // Assuming /sendText is correct as per your original code.
-            $this->api->post('sendText', $payload);
+            // Execute the command and capture its output (including stderr)
+            $output = shell_exec($command . ' 2>&1');
+
+            // Basic check for execution failure (e.g., curl command not found, or immediate shell error)
+            if ($output === null) {
+                throw new \RuntimeException("Failed to execute curl command. Check if 'curl' is installed and accessible. Command: {$command}");
+            }
+
+            // Attempt to decode the JSON response to check for API-level errors
+            $response = json_decode($output, true);
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                // If it's not valid JSON, it might be a general error message from curl or the server.
+                error_log("WAHA sendText failed (non-JSON response or parse error). Command: {$command}. Output: {$output}");
+                throw new \RuntimeException("WAHA sendText received invalid response: " . $output);
+            }
+
+            // WAHA API typically returns 'success: true' or an 'error' field on failure
+            if (isset($response['success']) && $response['success'] === false) {
+                $errorMessage = $response['message'] ?? 'Unknown error';
+                error_log("WAHA sendText failed (API error). Command: {$command}. Message: {$errorMessage}. Output: {$output}");
+                throw new \RuntimeException("WAHA API returned error: " . $errorMessage);
+            } elseif (isset($response['error'])) { // Some APIs might just have an 'error' field
+                error_log("WAHA sendText failed (API error). Command: {$command}. Error details: " . json_encode($response['error']) . ". Output: {$output}");
+                throw new \RuntimeException("WAHA API returned error: " . json_encode($response['error']));
+            }
+
+            // Log success if no errors detected
+            // error_log("WAHA sendText successful. Output: {$output}");
+
         } catch (Throwable $e) {
-            error_log("WAHA sendText failed: " . $e->getMessage());
+            error_log("WAHA sendText failed (via shell_exec): " . $e->getMessage());
         }
     }
 

@@ -10,20 +10,46 @@ use Autonomo\API\WAHA\Controllers\WhatsAppWebhookController;
 // Import the new Middleware
 use Autonomo\API\Middleware\ApiKeyMiddleware;
 
-// --- API Key Configuration ---
-// Load API key from environment variable.
-// It's crucial to set this in your server's environment for security.
-// For local development, you might use a .env file with a library like vlucas/phpdotenv.
-$wahaApiKey = getenv('WAHA_API_KEY');
+error_reporting(E_ALL); // Add for development debugging
+ini_set('display_errors', '1'); // Add for development debugging
 
-// Fallback for development/testing if the environment variable is not set.
-// !!! IMPORTANT: Replace 'YOUR_DEV_FALLBACK_API_KEY' with a strong, random key if you use this fallback,
-// !!! and NEVER commit sensitive keys directly into your code.
-// !!! Ensure the environment variable is set in production.
+
+function loadDotEnv(): void
+{
+    // Only load Dotenv if not already loaded
+    if (!class_exists(\Dotenv\Dotenv::class)) {
+        // Try to include Composer's autoloader
+        $autoload = __DIR__ . '/../../../vendor/autoload.php';
+        if (file_exists($autoload)) {
+            require_once $autoload;
+        } else {
+            throw new \RuntimeException("Composer autoload not found at: {$autoload}");
+        }
+    }
+
+    // Verify vlucas/phpdotenv is installed
+    if (!class_exists(\Dotenv\Dotenv::class)) {
+        throw new \RuntimeException('vlucas/phpdotenv is not installed. Run: composer require vlucas/phpdotenv');
+    }
+
+    // Define the .env path
+    $envPath = realpath(__DIR__ . '/../../../');
+    if ($envPath === false) {
+        throw new \RuntimeException('Invalid .env path: ' . __DIR__ . '/../../../');
+    }
+
+    // Load environment variables safely
+    $dotenv = \Dotenv\Dotenv::createImmutable($envPath);
+    $dotenv->safeLoad(); // use load() for strict mode
+}
+
+loadDotEnv();
+
+$wahaApiKey = env('WAHA_API_KEY');
+
 if (!$wahaApiKey) {
-    $wahaApiKey = 'YOUR_DEV_FALLBACK_API_KEY'; // !!! CHANGE THIS FOR PRODUCTION OR SET ENV VAR !!!
     // Log a warning for development environments
-    error_log("WAHA_API_KEY environment variable not set. Using fallback key. Set it for production security.");
+    error_log("WAHA_API_KEY environment variable not set.");
 }
 // --- End API Key Configuration ---
 
@@ -77,6 +103,8 @@ SimpleRouter::get('/charts/pie', function() {
     return $controller->getChart(ChartController::SLM_USAGE_PIE_ID);
 });
 
+SimpleRouter::post('/webhook/whatsapp', [WhatsAppWebhookController::class, 'handle']);
+
 
 // ===================================================
 // WAHA Webhook Endpoint
@@ -88,10 +116,10 @@ SimpleRouter::get('/charts/pie', function() {
 
 // Define a group that applies the ApiKeyMiddleware to all routes within it.
 // This is the standard way to apply middleware to specific routes/groups in Pecee\SimpleRouter.
-SimpleRouter::group(['middleware' => new ApiKeyMiddleware($wahaApiKey)], function () {
-    // Define the webhook route within this group.
-    // It will automatically inherit the ApiKeyMiddleware.
-    SimpleRouter::post('/webhook/whatsapp', [WhatsAppWebhookController::class, 'handle']);
-
-    // If you add other protected routes in the future, they can also be placed inside this group.
-});
+//SimpleRouter::group(['middleware' => new ApiKeyMiddleware($wahaApiKey)], function () {
+//    // Define the webhook route within this group.
+//    // It will automatically inherit the ApiKeyMiddleware.
+//    SimpleRouter::post('/webhook/whatsapp', [WhatsAppWebhookController::class, 'handle']);
+//
+//    // If you add other protected routes in the future, they can also be placed inside this group.
+//});
