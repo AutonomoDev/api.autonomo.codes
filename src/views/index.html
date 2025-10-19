@@ -5,132 +5,18 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Autonomo AI API Documentation</title>
-    <style>
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            line-height: 1.6;
-            color: #333;
-            background: #f4f7f6; /* Light background */
-            padding: 20px;
-        }
-        .container {
-            max-width: 960px;
-            margin: 0 auto;
-            background: #fff;
-            padding: 40px;
-            border-radius: 12px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.1), 0 0 0 1px rgba(0,0,0,0.05); /* Subtle layered shadow */
-        }
-        h1, h2 {
-            color: #2c3e50; /* Darker blue-grey */
-            border-bottom: 3px solid #3498db; /* Primary blue */
-            padding-bottom: 12px;
-            margin-bottom: 25px;
-            font-weight: 600;
-        }
-        h2 {
-            margin-top: 40px;
-            font-size: 2em;
-        }
-        .endpoint {
-            background: #fdfdfd; /* Slightly off-white for contrast */
-            padding: 25px;
-            border-radius: 8px;
-            margin-bottom: 35px;
-            border: 1px solid #e0e0e0; /* Light border */
-            border-left: 6px solid #3498db; /* Accent border */
-            transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
-        }
-        .endpoint:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 8px 30px rgba(0,0,0,0.15), 0 0 0 1px rgba(0,0,0,0.08);
-        }
-        .method {
-            font-weight: bold;
-            color: #fff; /* White text on colored background */
-            margin-right: 12px;
-            padding: 6px 12px;
-            border-radius: 4px;
-            display: inline-block; /* To ensure padding works */
-        }
-        .method.GET { background-color: #2ecc71; } /* Green for GET */
-        .method.POST { background-color: #f39c12; } /* Orange for POST */
-        .method.PUT { background-color: #e67e22; } /* Carrot for PUT */
-        .method.DELETE { background-color: #c0392b; } /* Red for DELETE */
-
-        .url {
-            font-family: 'Consolas', 'Monaco', monospace;
-            font-size: 1.15em;
-            color: #c0392b; /* Reddish for URL */
-            background: #fef5e7; /* Light orange background */
-            padding: 6px 12px;
-            border-radius: 4px;
-            display: inline-block; /* To ensure padding works */
-        }
-        .params-list {
-            margin-top: 15px;
-            padding-left: 25px;
-            list-style-type: disc;
-        }
-        .params-list li {
-            margin-bottom: 10px;
-        }
-        .param {
-            font-family: 'Consolas', 'Monaco', monospace;
-            color: #8e44ad; /* Purple for parameters */
-            font-weight: bold;
-        }
-        .param-type {
-            color: #7f8c8d; /* Grey for type */
-            font-style: italic;
-            font-size: 0.9em;
-            margin-left: 5px;
-        }
-        .request-body-example, .response-example {
-            font-family: 'Consolas', 'Monaco', monospace;
-            font-size: 0.9em;
-            background: #34495e; /* Dark background for code */
-            color: #ecf0f1; /* Light text */
-            padding: 18px;
-            border-radius: 6px;
-            overflow-x: auto;
-            white-space: pre-wrap; /* Wrap long lines */
-            margin-top: 15px;
-            border: 1px solid #2c3e50;
-        }
-        .response-example.error {
-            background: #e74c3c; /* Red for error responses */
-            color: #fff;
-        }
-        strong { color: #e67e22; } /* Orange for emphasis */
-        ul { padding-left: 25px; }
-        li { margin-bottom: 8px; }
-
-        /* General style for inline code snippets */
-        code {
-            background-color: #f3f3f3;
-            padding: 2px 4px;
-            border-radius: 3px;
-        }
-
-        /* FIX: Reset background and padding for code inside <pre> blocks */
-        .request-body-example code,
-        .response-example code {
-            background-color: transparent;
-            padding: 0;
-        }
-    </style>
-</head>
+    <link rel="stylesheet" href="/css/main.css" />
+  </head>
 <body>
     <div class="container">
         <h1>Autonomo AI API Documentation</h1>
-        <p>Welcome to the API documentation for Autonomo AI's Digital Partner services. This API allows you to interact with volunteer sign-ups, system health checks, and chart data.</p>
+        <p>Welcome to the API documentation for Autonomo AI's Digital Partner services. This API allows you to interact with volunteer sign-ups, system health checks, chart data, and receive messages via WhatsApp.</p>
 
         <!-- Health Check Endpoint -->
         <h2>Health Check</h2>
         <div class="endpoint">
             <p><span class="method GET">GET</span> <span class="url">/api/health</span></p>
-            <p>Description: Checks the operational status of the Autonomo AI API.</p>
+            <p>Checks the operational status of the Autonomo AI API.</p>
             <p><strong>Response (200 OK):</strong></p>
             <pre class="response-example"><code>{
   "status": "healthy",
@@ -143,7 +29,7 @@
         <h2>Volunteer Sign Up</h2>
         <div class="endpoint">
             <p><span class="method POST">POST</span> <span class="url">/ai-companion/signup</span></p>
-            <p>Description: Submits a new application for the Autonomo AI volunteer tester program.</p>
+            <p>Submits a new application for the Autonomo AI volunteer tester program.</p>
             <p><strong>Request Body (JSON):</strong></p>
             <pre class="request-body-example"><code>{
   "fullName": "Jane Doe",
@@ -196,8 +82,8 @@
         <!-- Volunteer Stats Endpoint -->
         <h2>Volunteer Statistics</h2>
         <div class="endpoint">
-            <p><span class="method GET">GET</span> <span class="url">/api/volunteer-stats</span></p>
-            <p>Description: Retrieves aggregated statistics about registered volunteers. Intended for internal use.</p>
+            <p><span class="method GET">GET</span> <span class="url">/volunteer-stats</span></p>
+            <p>Retrieves aggregated statistics about registered volunteers. Intended for internal use.</p>
             <p><strong>Response (200 OK):</strong></p>
             <pre class="response-example"><code>{
   "totalVolunteers": 150,
@@ -227,12 +113,21 @@
 }</code></pre>
         </div>
 
-        <!-- SLM Proficiency Chart Endpoint -->
-        <h2>SLM Proficiency Chart Data</h2>
+        <!-- Chart Endpoints -->
+        <h2>Chart Data Endpoints</h2>
+        <p>These endpoints provide data formatted for visualization. They use a generic route that accepts a chart ID, and a specific route for a common pie chart.</p>
+
+        <!-- Generic Chart Endpoint -->
         <div class="endpoint">
-            <p><span class="method GET">GET</span> <span class="url">/api/charts/slm-proficiency</span></p>
-            <p>Description: Retrieves data for the SLM Proficiency Evolution chart, comparing different language models. Suitable for bar or line charts.</p>
-            <p><strong>Response (200 OK):</strong></p>
+            <p><span class="method GET">GET</span> <span class="url">/charts/{id}</span></p>
+            <p>Retrieves chart data for a specific chart identified by its ID.</p>
+            <p><strong>Parameters:</strong></p>
+            <ul class="params-list">
+                <li><span class="param">id</span> <span class="param-type">(String)</span>: The unique identifier for the chart data requested. <strong class="required">Required</strong></li>
+            </ul>
+            <p><strong>Example Usage:</strong></p>
+            <pre class="response-example"><code>GET /charts/slm-proficiency-v0-v13</code></pre>
+            <p><strong>Response (200 OK - example for slm-proficiency-v0-v13):</strong></p>
             <pre class="response-example"><code>{
   "success": true,
   "chartId": "slm-proficiency-v0-v13",
@@ -288,15 +183,14 @@
             <p><strong>500 Internal Server Error:</strong> Server error during processing.</p>
             <pre class="response-example error"><code>{
   "success": false,
-  "message": "Could not retrieve SLM proficiency chart data at this time."
+  "message": "Could not retrieve chart data for ID 'slm-proficiency-v0-v13' at this time."
 }</code></pre>
         </div>
 
-        <!-- Market Share Chart Endpoint -->
-        <h2>Market Share Distribution Chart Data</h2>
+        <!-- Specific Pie Chart Endpoint -->
         <div class="endpoint">
-            <p><span class="method GET">GET</span> <span class="url">/api/charts/pie</span></p>
-            <p>Description: Retrieves data for the Market Share Distribution 2025 chart, including detailed metadata and product performance metrics.</p>
+            <p><span class="method GET">GET</span> <span class="url">/charts/pie</span></p>
+            <p>Retrieves data specifically for the Market Share Distribution 2025 chart (uses a predefined internal ID).</p>
             <p><strong>Response (200 OK):</strong></p>
             <pre class="response-example"><code>{
   "success": true,
@@ -334,6 +228,48 @@
   "message": "Could not retrieve market share chart data at this time."
 }</code></pre>
         </div>
+
+        <!-- ==== WAHA Webhook Endpoint ==== -->
+        <h2>WhatsApp Webhook</h2>
+        <div class="endpoint">
+            <p><span class="method POST">POST</span> <span class="url">/webhook/whatsapp</span></p>
+            <p>Receives incoming messages from WhatsApp via webhook. It forwards the message content to an LLM service for processing and sends the generated reply back to the user via WhatsApp.</p>
+            <p><strong>Security:</strong> This endpoint requires an <code>X-API-Key</code> header with a valid API key for authentication.</p>
+            <p><strong>Request Body (JSON):</strong></p>
+            <p>The webhook expects a JSON payload containing message details. The critical fields are <code>message.from</code> (sender's ID) and <code>message.text</code> (message content).</p>
+            <pre class="request-body-example"><code>{
+  "message": {
+    "from": "whatsapp:+1234567890",
+    "text": "Hello, can you help me with something?"
+  },
+  "//": "Other fields like 'type', 'timestamp', etc., might be present but are not processed by this webhook."
+}</code></pre>
+            <p><strong>Request Headers:</strong></p>
+            <ul class="params-list">
+                <li><span class="param">X-API-Key</span> <span class="param-type">(String)</span>: Your secret API key. <strong class="required">Required</strong></li>
+            </ul>
+            <p><strong>Parameters (in JSON body):</strong></p>
+            <ul class="params-list">
+                <li><span class="param">message</span> <span class="param-type">(Object)</span>: The main object containing message details. <strong class="required">Required</strong></li>
+                <li><span class="param">message.from</span> <span class="param-type">(String)</span>: The sender's unique identifier (e.g., a WhatsApp phone number prefixed with 'whatsapp:+'). <strong class="required">Required</strong></li>
+                <li><span class="param">message.text</span> <span class="param-type">(String)</span>: The content of the message sent by the user. <strong class="required">Required</strong></li>
+            </ul>
+            <p><strong>Responses:</strong></p>
+            <p><strong>200 OK:</strong> The webhook successfully received and authenticated the message. The reply will be sent asynchronously.</p>
+            <pre class="response-example"><code>{
+  "status": "ok"
+}</code></pre>
+            <p><strong>400 Bad Request:</strong> The payload was invalid or missing required fields.</p>
+            <pre class="response-example error"><code>{
+  "error": "Invalid payload"
+}</code></pre>
+            <p><strong>401 Unauthorized:</strong> The <code>X-API-Key</code> header was missing or invalid.</p>
+            <pre class="response-example error"><code>{
+  "success": false,
+  "message": "Unauthorized: Invalid or missing API Key."
+}</code></pre>
+        </div>
+        <!-- ==== END: WAHA Webhook Endpoint ==== -->
 
     </div>
 </body>

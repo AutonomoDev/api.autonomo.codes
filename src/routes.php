@@ -5,6 +5,28 @@ use Pecee\SimpleRouter\SimpleRouter;
 // Import controllers using their full namespaces
 use Autonomo\API\Controllers\VolunteerController;
 use Autonomo\API\Controllers\ChartController;
+// Import the new WhatsApp Webhook Controller
+use Autonomo\API\WAHA\Controllers\WhatsAppWebhookController;
+// Import the new Middleware
+use Autonomo\API\Middleware\ApiKeyMiddleware;
+
+// --- API Key Configuration ---
+// Load API key from environment variable.
+// It's crucial to set this in your server's environment for security.
+// For local development, you might use a .env file with a library like vlucas/phpdotenv.
+$wahaApiKey = getenv('WAHA_API_KEY');
+
+// Fallback for development/testing if the environment variable is not set.
+// !!! IMPORTANT: Replace 'YOUR_DEV_FALLBACK_API_KEY' with a strong, random key if you use this fallback,
+// !!! and NEVER commit sensitive keys directly into your code.
+// !!! Ensure the environment variable is set in production.
+if (!$wahaApiKey) {
+    $wahaApiKey = 'YOUR_DEV_FALLBACK_API_KEY'; // !!! CHANGE THIS FOR PRODUCTION OR SET ENV VAR !!!
+    // Log a warning for development environments
+    error_log("WAHA_API_KEY environment variable not set. Using fallback key. Set it for production security.");
+}
+// --- End API Key Configuration ---
+
 
 SimpleRouter::get('/', function () {
     response()->header('Content-Type: text/html');
@@ -13,9 +35,8 @@ SimpleRouter::get('/', function () {
 });
 
 // API endpoint for AI companion volunteer signup
-// Using fully qualified namespace for the controller class
 SimpleRouter::post('/ai-companion/signup', function() {
-    $controller = new VolunteerController(); // Default namespace is used here based on index.php
+    $controller = new VolunteerController();
     $result = $controller->register();
 
     response()->header('Content-Type: application/json');
@@ -23,9 +44,8 @@ SimpleRouter::post('/ai-companion/signup', function() {
 });
 
 // Get volunteer stats (for internal use)
-// Using fully qualified namespace for the controller class
 SimpleRouter::get('/volunteer-stats', function() {
-    $controller = new VolunteerController(); // Default namespace is used here based on index.php
+    $controller = new VolunteerController();
     $result = $controller->getStats();
 
     response()->header('Content-Type: application/json');
@@ -47,19 +67,31 @@ SimpleRouter::get('/api/health', function () {
 // ===================================================
 
 // Generic endpoint to get chart data by ID.
-// This route will handle requests like:
-// GET /api/charts/slm-proficiency-v0-v13
-// GET /api/charts/slm-usage-distribution
+// Handles requests like: GET /charts/slm-proficiency-v0-v13
 SimpleRouter::get('/charts/{id}', [ChartController::class, 'getChart']);
 
 // Specific endpoint for the SLM Usage Distribution Pie Chart.
-// UPDATED URL PATH to /api/charts/pie as per design requirement.
-SimpleRouter::get('/charts/pie', function() { // <-- Changed URL path here
+// URL path is /charts/pie
+SimpleRouter::get('/charts/pie', function() {
     $controller = new ChartController();
-    // Call the getChart method with the specific internal ID for the pie chart.
-    // The getChart method will then dispatch to the correct internal handler (getSlmUsageDistribution).
     return $controller->getChart(ChartController::SLM_USAGE_PIE_ID);
 });
 
 
-SimpleRouter::post('/webhook/whatsapp', [WhatsAppWebhookController::class, 'handle']);
+// ===================================================
+// WAHA Webhook Endpoint
+// ===================================================
+
+// Handles incoming WhatsApp messages via webhook.
+// Forwards messages to LLM and sends back replies.
+// This route is protected by the ApiKeyMiddleware.
+
+// Define a group that applies the ApiKeyMiddleware to all routes within it.
+// This is the standard way to apply middleware to specific routes/groups in Pecee\SimpleRouter.
+SimpleRouter::group(['middleware' => new ApiKeyMiddleware($wahaApiKey)], function () {
+    // Define the webhook route within this group.
+    // It will automatically inherit the ApiKeyMiddleware.
+    SimpleRouter::post('/webhook/whatsapp', [WhatsAppWebhookController::class, 'handle']);
+
+    // If you add other protected routes in the future, they can also be placed inside this group.
+});

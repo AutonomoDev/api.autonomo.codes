@@ -1,0 +1,113 @@
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    line-height: 1.6;
+    color: #333;
+    background: #f4f7f6; /* Light background */
+    padding: 20px;
+}
+.container {
+    max-width: 960px;
+    margin: 0 auto;
+    background: #fff;
+    padding: 40px;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.1), 0 0 0 1px rgba(0,0,0,0.05); /* Subtle layered shadow */
+}
+h1, h2 {
+    color: #2c3e50; /* Darker blue-grey */
+    border-bottom: 3px solid #3498db; /* Primary blue */
+    padding-bottom: 12px;
+    margin-bottom: 25px;
+    font-weight: 600;
+}
+h2 {
+    margin-top: 40px;
+    font-size: 2em;
+}
+.endpoint {
+    background: #fdfdfd; /* Slightly off-white for contrast */
+    padding: 25px;
+    border-radius: 8px;
+    margin-bottom: 35px;
+    border: 1px solid #e0e0e0; /* Light border */
+    border-left: 6px solid #3498db; /* Accent border */
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+}
+.endpoint:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 30px rgba(0,0,0,0.15), 0 0 0 1px rgba(0,0,0,0.08);
+}
+.method {
+    font-weight: bold;
+    color: #fff; /* White text on colored background */
+    margin-right: 12px;
+    padding: 6px 12px;
+    border-radius: 4px;
+    display: inline-block; /* To ensure padding works */
+}
+.method.GET { background-color: #2ecc71; } /* Green for GET */
+.method.POST { background-color: #f39c12; } /* Orange for POST */
+.method.PUT { background-color: #e67e22; } /* Carrot for PUT */
+.method.DELETE { background-color: #c0392b; } /* Red for DELETE */
+
+.url {
+    font-family: 'Consolas', 'Monaco', monospace;
+    font-size: 1.15em;
+    color: #c0392b; /* Reddish for URL */
+    background: #fef5e7; /* Light orange background */
+    padding: 6px 12px;
+    border-radius: 4px;
+    display: inline-block; /* To ensure padding works */
+}
+.params-list {
+    margin-top: 15px;
+    padding-left: 25px;
+    list-style-type: disc;
+}
+.params-list li {
+    margin-bottom: 10px;
+}
+.param {
+    font-family: 'Consolas', 'Monaco', monospace;
+    color: #8e44ad; /* Purple for parameters */
+    font-weight: bold;
+}
+.param-type {
+    color: #7f8c8d; /* Grey for type */
+    font-style: italic;
+    font-size: 0.9em;
+    margin-left: 5px;
+}
+.request-body-example, .response-example {
+    font-family: 'Consolas', 'Monaco', monospace;
+    font-size: 0.9em;
+    background: #34495e; /* Dark background for code */
+    color: #ecf0f1; /* Light text */
+    padding: 18px;
+    border-radius: 6px;
+    overflow-x: auto;
+    white-space: pre-wrap; /* Wrap long lines */
+    margin-top: 15px;
+    border: 1px solid #2c3e50;
+}
+.response-example.error {
+    background: #e74c3c; /* Red for error responses */
+    color: #fff;
+}
+strong { color: #e67e22; } /* Orange for emphasis */
+ul { padding-left: 25px; }
+li { margin-bottom: 8px; }
+
+/* General style for inline code snippets */
+code {
+    background-color: #f3f3f3;
+    padding: 2px 4px;
+    border-radius: 3px;
+}
+
+/* FIX: Reset background and padding for code inside <pre> blocks */
+.request-body-example code,
+.response-example code {
+    background-color: transparent;
+    padding: 0;
+}
