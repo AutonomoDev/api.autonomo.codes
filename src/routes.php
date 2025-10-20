@@ -2,57 +2,12 @@
 // ==== ./src/routes.php ====
 
 use Pecee\SimpleRouter\SimpleRouter;
-// Import controllers using their full namespaces
 use Autonomo\API\Controllers\VolunteerController;
 use Autonomo\API\Controllers\ChartController;
-// Import the new WhatsApp Webhook Controller
 use Autonomo\API\WAHA\Controllers\WhatsAppWebhookController;
-// Import the new Middleware
-use Autonomo\API\Middleware\ApiKeyMiddleware;
 
 error_reporting(E_ALL); // Add for development debugging
 ini_set('display_errors', '1'); // Add for development debugging
-
-
-function loadDotEnv(): void
-{
-    // Only load Dotenv if not already loaded
-    if (!class_exists(\Dotenv\Dotenv::class)) {
-        // Try to include Composer's autoloader
-        $autoload = __DIR__ . '/../../../vendor/autoload.php';
-        if (file_exists($autoload)) {
-            require_once $autoload;
-        } else {
-            throw new \RuntimeException("Composer autoload not found at: {$autoload}");
-        }
-    }
-
-    // Verify vlucas/phpdotenv is installed
-    if (!class_exists(\Dotenv\Dotenv::class)) {
-        throw new \RuntimeException('vlucas/phpdotenv is not installed. Run: composer require vlucas/phpdotenv');
-    }
-
-    // Define the .env path
-    $envPath = realpath(__DIR__ . '/../../../');
-    if ($envPath === false) {
-        throw new \RuntimeException('Invalid .env path: ' . __DIR__ . '/../../../');
-    }
-
-    // Load environment variables safely
-    $dotenv = \Dotenv\Dotenv::createImmutable($envPath);
-    $dotenv->safeLoad(); // use load() for strict mode
-}
-
-loadDotEnv();
-
-$wahaApiKey = env('WAHA_API_KEY');
-
-if (!$wahaApiKey) {
-    // Log a warning for development environments
-    error_log("WAHA_API_KEY environment variable not set.");
-}
-// --- End API Key Configuration ---
-
 
 SimpleRouter::get('/', function () {
     response()->header('Content-Type: text/html');
@@ -95,6 +50,8 @@ SimpleRouter::get('/api/health', function () {
 // Generic endpoint to get chart data by ID.
 // Handles requests like: GET /charts/slm-proficiency-v0-v13
 SimpleRouter::get('/charts/{id}', [ChartController::class, 'getChart']);
+
+SimpleRouter::get('/api/charts/pie', function() { return ''; });
 
 // Specific endpoint for the SLM Usage Distribution Pie Chart.
 // URL path is /charts/pie

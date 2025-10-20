@@ -78,6 +78,6 @@
     },
     "repositories": [
         { "type": "git", "url": "https://github.com/PHPExperts-Contribs/minicli.git" },
-        { "type": "path", "url": "/code/AISpeaker", "options": { "symlink": true } }
+        { "type": "path", "url": "/code/AISpeaker", "options": { "symlink": false } }
     ]
 }

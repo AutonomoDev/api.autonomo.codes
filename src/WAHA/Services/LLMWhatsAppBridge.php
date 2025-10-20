@@ -52,106 +52,9 @@ class LLMWhatsAppBridge
      * @return array
      * @throws \Exception
      */
-    public function chat_bad(array $prompt, $chatId): array
-    {
-        file_put_contents('/tmp/whatsapp.log', print_r([$chatId, $prompt], true) . "\n", FILE_APPEND);
-
-        // 1. Get the LLM response text (using your hardcoded data)
-//        $llmResponse = unserialize(<<<TXT
-//a:8:{s:5:"model";s:25:"claude-3-5-haiku-20241022";s:2:"id";s:28:"msg_01MPj19eusPavhfd5k5cMmVp";s:4:"type";s:7:"message";s:4:"role";s:9:"assistant";s:7:"content";a:1:{i:0;O:8:"stdClass":2:{s:4:"type";s:4:"text";s:4:"text";s:430:"Good day, Mr. Eltawil. I'm sorry to hear about the issue with your toilet in apartment 4502. I'll log a repair request right away. Our maintenance technician, Rajesh Sharma, will come to inspect and repair the toilet. He will be available tomorrow between 10:00 AM and 12:00 PM. His contact number is +971 50 623 8741. Please ensure someone is present in the apartment during this time. Is there anything else I can help you with?";}}s:11:"stop_reason";s:8:"end_turn";s:13:"stop_sequence";N;s:5:"usage";O:8:"stdClass":6:{s:12:"input_tokens";i:115;s:27:"cache_creation_input_tokens";i:0;s:23:"cache_read_input_tokens";i:0;s:14:"cache_creation";O:8:"stdClass":2:{s:25:"ephemeral_5m_input_tokens";i:0;s:25:"ephemeral_1h_input_tokens";i:0;}s:13:"output_tokens";i:116;s:12:"service_tier";s:8:"standard";}}
-//TXT
-//        );
-//        $textToSend = $llmResponse['content'][0]->text;
-
-        // 2. Prepare the request data
-        $apiKey = env('WAHA_API_KEY');
-        if (!$apiKey) {
-            throw new \RuntimeException('WAHA_API_KEY is not set in your .env file.');
-        }
-
-        $url = 'http://localhost:3000/api/sendText';
-        $url = 'http://172.17.0.1:3000/api/sendText';
-
-        $phone = substr($chatId, 0, strpos($str, '@'));
-
-        $payload = [
-//            'chatId' => '971543998492@c.us',
-//            'chatId' => '971585364477@c.us',
-            'chatId' => $chatId,
-            'text' => "Incoming phone number ($phone) --- \n" . implode("\n", $prompt),
-            'session' => 'default',
-        ];
-
-
-        // 3. Set up the cURL request
-        $ch = curl_init();
-        $finalResponse = [];
-
-        try {
-            // Encode the payload to a JSON string
-            $jsonPayload = json_encode($payload);
-
-            // Prepare the headers array, just like in your shell script
-            $headers = [
-                'Accept: application/json',
-                'Content-Type: application/json',
-                'X-Api-Key: ' . $apiKey,
-            ];
-
-            // Set cURL options
-            curl_setopt($ch, CURLOPT_URL, $url);
-            curl_setopt($ch, CURLOPT_POST, true); // Set the request method to POST
-            curl_setopt($ch, CURLOPT_POSTFIELDS, $jsonPayload); // Attach the JSON payload
-            curl_setopt($ch, CURLOPT_HTTPHEADER, $headers); // Set the headers
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true); // Return the response as a string instead of printing it
-            curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10); // Connection timeout in seconds
-            curl_setopt($ch, CURLOPT_TIMEOUT, 30); // Total request timeout in seconds
-
-            // 4. Execute the request and get the response
-            echo "--- Sending cURL Request ---\n";
-            echo "URL: $url\n";
-            echo "Payload: $jsonPayload\n";
-            echo "----------------------------\n";
-
-            $responseBody = curl_exec($ch);
-
-            // 5. Check for cURL errors (e.g., connection failed, empty reply)
-            if (curl_errno($ch)) {
-                $error_msg = curl_error($ch);
-                $error_no = curl_errno($ch);
-                // This will now give you a useful error message instead of just dying
-                throw new \Exception("cURL Error ($error_no): $error_msg for $url");
-            }
-
-            // 6. Check the HTTP status code
-            $httpStatusCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-            if ($httpStatusCode >= 400) {
-                throw new \Exception("HTTP Error: Received status code $httpStatusCode. Response: $responseBody");
-            }
-
-            // 7. Decode the successful response
-            $finalResponse = json_decode($responseBody, true);
-
-            echo "--- SUCCESS: Received Response ---\n";
-//            dump($finalResponse);
-            echo "--------------------------------\n";
-
-        } finally {
-            // ALWAYS close the cURL handle, even if errors occurred
-            curl_close($ch);
-        }
-
-        return $finalResponse;
-    }
-
-    /**
-     * @param array $prompt
-     * @return array
-     * @throws \Exception
-     */
     public function chat(array $prompt, $chatId): array
     {
-        file_put_contents('/tmp/whatsapp-2.log', print_r([$chatId, $prompt], true) . "\n", FILE_APPEND);
+        file_put_contents('/srv/http/waha/whatsapp-2.log', print_r([$chatId, $prompt], true) . "\n", FILE_APPEND);
 
         // 1. Get the LLM response text (using your hardcoded data)
 //        $llmResponse = unserialize(<<<TXT
@@ -167,7 +70,7 @@ class LLMWhatsAppBridge
         }
 
         $url = 'http://localhost:3000/api/sendText';
-        $url = 'http://172.17.0.1:3000/api/sendText';
+        $url = env('WAHA_API_URL') . '/api/sendText';
 
         $phone = substr($chatId, 0, strpos($chatId, '@'));
 
@@ -199,7 +102,6 @@ Task: AC Repair
 Contact: [Business] ABDS AC Repairing Services, Al Satwa, +971 524-56-4517
 
 
-
 Confirm that the name of the tenant is not the same as the name of the technician.
 Confirm that they do not have the same phone number. if not, try again now.
 Loosly match the digits, because you have numbers unformatted.
@@ -208,7 +110,7 @@ TXT;
 
         $actualPrompt = "Incoming phone number ($phone) --- \n" . implode("\n", $prompt);
         $response = $this->ai->chat([['role' => 'user', 'content' => $actualPrompt]], $systemPrompt);
-        file_put_contents('/tmp/llm-reply-' . time() . '.log', print_r($response, true) . "\n", FILE_APPEND);
+        file_put_contents('/srv/http/waha/llm-reply-' . time() . '.log', print_r($response, true) . "\n", FILE_APPEND);
 
         return $response;
     }

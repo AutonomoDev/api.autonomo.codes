@@ -15,23 +15,21 @@ class WhatsAppService
         // NOTE: Make sure WAHA_API_URL and WAHA_API_KEY are correctly set in your environment.
         // The URL should be the base URL of your WAHA container, e.g., http://localhost:3000/api
         // We'll keep the RESTSpeaker initialized but won't use it for sendText as per new requirements.
-        $auth = new WAHAAuth($_ENV['WAHA_API_KEY']);
-        $this->api = new RESTSpeaker($auth, rtrim($_ENV['WAHA_API_URL'], '/') . '/');
+//        $auth = new WAHAAuth(env('WAHA_API_KEY'));
+//        $this->api = new RESTSpeaker($auth, rtrim(env('WAHA_API_URL'), '/') . '/');
     }
 
     public function sendText(string $chatId, string $text, ?string $replyTo = null): void
     {
-//        $wahaApiUrl = rtrim(env('WAHA_API_URL'), '/');
-        $wahaApiUrl = 'http://localhost:3000';
-        $wahaApiUrl = 'http://172.17.0.1:3000';
+        $wahaApiUrl = env('WAHA_API_URL');
         $apiKey = env('WAHA_API_KEY');
 
         $payload = [
             'chatId' => $chatId,
             'text'   => $text,
-            'session' => 'default', // Hardcoded as per the curl script example
+            'session' => 'default',
         ];
-//        file_put_contents('/tmp/')print_r(json_encode($payload, JSON_PRETTY_PRINT));
+//        file_put_contents('/srv/http/waha/')print_r(json_encode($payload, JSON_PRETTY_PRINT));
 
         // Allow replying to a specific message ID.
         if ($replyTo) {
@@ -44,9 +42,11 @@ class WhatsAppService
         // Escape the JSON data for safe inclusion in the shell command
         $escapedJsonData = escapeshellarg($jsonData);
 //        $escapedApiKey = escapeshellarg($apiKey);
+        $wahaApiUrl = rtrim($wahaApiUrl, '/');
 
         // Construct the curl command directly from the shell script provided.
         // We're replacing the dynamic parts with PHP variables.
+
         $command = sprintf(
             "curl -X 'POST' \\
               '%s/api/sendText' \\
@@ -54,10 +54,11 @@ class WhatsAppService
               -H 'Content-Type: application/json' \\
               -H 'X-Api-Key: %s' \\
               -d %s",
-            $wahaApiUrl,
+                $wahaApiUrl,
             $apiKey,
             $escapedJsonData
         );
+        file_put_contents('/srv/http/waha/curl-' . time() . '.txt', $command);
 
         try {
             // Execute the command and capture its output (including stderr)
