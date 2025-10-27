@@ -74,63 +74,17 @@ class LLMWhatsAppBridge
 
         $phone = substr($chatId, 0, strpos($chatId, '@'));
 
-        $systemPrompt = <<<TXT
-You are a friendly concierge in an apartment building.
- There are many tenants and you need to find the right one.
+        $storage = __DIR__ . '/../../../storage/';
+        $prompt = file_get_contents($storage . '/prompt.md');
+        $answers = file_get_contents($storage . '/faq.tsv');
+        $tenants = file_get_contents($storage . '/tenants.tsv');
+        $vendors = file_get_contents($storage . '/vendors.tsv');
 
-DO NOT give a tenant a recommendation for themselves, ever.
-
-Tenants: 
-Maizen Eltawil - Marina Towers, Apt 4502, Dubai Marina. Phone: 971543998492 
-Theodore R. Smith - Sulafa Tower, Apt 3602, Dubai Marina. Phone: 18323039477
-Arshad Iqbal - Abdullah Meheirah building, Apt 402, Barsha Heights. Phone: 919874022772
-Richard Stalwart - Marina Tower, Dubai Harbor, near Barsha Heights. Phone: 923338809541
-Robert Smith - Jumeira Gardens Tower, Apt 6105, Al Satwa. Phone: 17138228904 
-Alvin Alcasid - Garden Residences, Apt 1503, Deira. Phone: 971543998492
-Saiful Sumaon - Jumeira Lakes Tower, Apt 1302, Jumeira Lakes. Phone: 8801713203656
-
-Task: Plumber
-Contact: [Business] Thomas Services UAE, at Al Saef - 1st St - Al Thanyah Third - Barsha Heights - Dubai,
-phone +971 585-36-0247
-
-Task: AC / air-conditioning Repair
-Contact: [Technician] Alvin Alcasid, Dubai Media City, phone: +971 526-53-6551
-
-Task: Electrical Repair
-Contact: [Business] Al Sammak Electrical Repair, Al Satwa, +971 555-15-3398 
-
-Task: AC Repair
-Contact: [Business] ABDS AC Repairing Services, Al Satwa, +971 524-56-4517
-
-
-Confirm that the name of the tenant is not the same as the name of the technician.
-Confirm that they do not have the same phone number. if not, try again now.
-Loosly match the digits, because you have numbers unformatted.
-
-Keep your internal thoughts and confirmations to yourself. 
-Respond to the user in whatever language they last spoke in.
-
-FAQ:
-
-Amenities	gym, fitness, workout, exercise	Where is the gym?	The resident gym and fitness center is open 24/7.	Sulafa Tower	Tower A	P2	Floor 42
-Amenities	gym, fitness, workout, exercise	Where is the gym?	The resident gym and fitness center is open 24/7.	Palm Jumeirah	Palm Tower A	P2	West Wing
-Amenities	pool, swimming, sunbathing	What time does the pool close?	The rooftop infinity pool is open from 6 AM to 10 PM daily.	Palm Jumeirah	Palm Tower A	45 (Rooftop)	N/A
-Amenities	kids, children, play area	Is there a play area for kids?	Yes, the children's indoor play area is located on the ground floor.	Palm Jumeirah	Palm Tower A	G	East Wing
-Amenities	cinema, movie, theater	How do I book the resident cinema?	The private cinema can be booked through the concierge desk. Bookings are available in 3-hour slots.	Palm Jumeirah	Palm Tower A	P1	N/A
-Policies	guest, visitor, friend, family	Can I bring a guest to the pool?	Residents are welcome to bring up to two guests to the pool area. Please ensure they are signed in at the front desk.	All	All	N/A	N/A
-Policies	parking, car, valet	Where do my visitors park?	Visitor parking is available on level B1. Please register your guest's vehicle at the security desk for a temporary pass.	All	All	B1	Visitor Zone
-Policies	pets, dog, cat, animal	Is the building pet-friendly?	Yes, the building is pet-friendly for small domestic pets. Please ensure they are leashed in all common areas.	All	All	N/A	N/A
-Policies	delivery, talabat, careem, amazon	Where do I collect my food deliveries?	All food and package deliveries can be collected from the concierge desk in the main lobby.	All	All	G	Concierge Desk
-Services	cleaning, housekeeping	Do you offer apartment cleaning?	Yes, our housekeeping team offers several cleaning packages. I can schedule a service for you or send you the price list.	All	All	N/A	N/A
-Services	maintenance, broken, fix	How do I report a maintenance issue?	You can report any maintenance issue directly to me, 24/7. What seems to be the problem?	All	All	N/A	N/A
-Contact	manager, management, office	What is the management office email?	The building management office can be reached at manager@palmtower.com. Is there an issue I can assist you with directly?	All	All	N/A	N/A
-Locations	washroom, bathroom, toilet	Where is the nearest washroom?	Public washrooms are available for residents and their guests.	Palm Jumeirah	Palm Tower A	G	Main Lobby, West
-Locations	washroom, bathroom, toilet	Where is the nearest washroom?	Public washrooms are available for residents and their guests.	Palm Jumeirah	Palm Tower A	P2	Pool Area
-Locations	washroom, bathroom, toilet	Where is the nearest washroom?	Public washrooms are available for residents and their guests.	Palm Jumeirah	Palm Tower A	45	Sky Lounge
-Locations	trash, garbage, waste	Where is the trash room?	The waste disposal room is located on every floor.	All	All	Every Floor	Service Elevator Area
-Locations	emergency, exit, fire escape	Where is the fire exit?	Emergency fire exits are located at the North and South ends of the main hallway on every floor.	All	All	Every Floor	North & South Hallway
-TXT;
-
+        $systemPrompt = str_replace(
+            ['[[TENANTS]]', '[[VENDORS]]', '[[FAQ]]'],
+            [$tenants, $vendors, $answers],
+            $prompt
+        );
 
         $actualPrompt = "Incoming phone number ($phone) --- \n" . implode("\n", $prompt);
         $response = $this->ai->chat([['role' => 'user', 'content' => $actualPrompt]], $systemPrompt);

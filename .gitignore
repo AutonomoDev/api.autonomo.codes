@@ -7,3 +7,4 @@ composer.lock
 /content-*.md
 /git-*.json
 /response-*.json
+/storage
