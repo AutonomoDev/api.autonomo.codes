@@ -144,8 +144,8 @@ class WhatsAppWebhookController
             $initialLLMReplyText = $replyResponse['content'][0]['text'] ?? '';
             file_put_contents('/srv/http/waha/extract-categories.log', date('c') . ' ' . __LINE__);
 
-            // Extract category and severity from LLM reply and filter the text
-            [$filteredReplyForUser, $extractedCategory, $extractedSeverity] = $this->extractAndCategorizeFromLLMReply(
+            // Extract category, severity, and subject from LLM reply and filter the text
+            [$filteredReplyForUser, $category, $severity, $subject] = $this->extractAndCategorizeFromLLMReply(
                 $initialLLMReplyText,
                 $allowedCategories
             );
@@ -153,27 +153,28 @@ class WhatsAppWebhookController
 
             // Update ticket metadata with extracted information and latest timestamp
             if ($ticketData) { // $ticketData should always be set here, either new or existing
-                $ticketData['category'] = $extractedCategory;
-                $ticketData['priority'] = $extractedSeverity;
+                $ticketData['category'] = $category;
+                $ticketData['priority'] = $severity;
+                if (!empty($subject)) {
+                    $ticketData['summary'] = $subject;
+                }
                 $ticketData['timestamp'] = (new DateTimeImmutable())->format(DateTimeInterface::ATOM);
                 $this->firebase->saveTicket($ticketData);
             }
 
-            file_put_contents('/srv/http/waha/extract-categories.log', date('c') . ' ' . $extractedCategory, FILE_APPEND);
-            file_put_contents('/srv/http/waha/extract-categories.log', date('c') . ' ' . $extractedCategory, FILE_APPEND);
+            file_put_contents('/srv/http/waha/extract-categories.log', date('c') . ' ' . $category . "\n", FILE_APPEND);
             $reply = $filteredReplyForUser;
 
             // Send the reply using the WhatsAppService.
             $wa->sendText($chatId, $reply, $messageId);
-            file_put_contents('/srv/http/waha/extract-categories.log', date('c') . ' ' . __LINE__, FILE_APPEND);
 
             // Add assistant reply to Firebase
             try {
-                file_put_contents('/srv/http/waha/extract-categories.log', date('c') . ' ' . __LINE__, FILE_APPEND);
+                file_put_contents('/srv/http/waha/extract-categories.log', date('c') . ' ' . __LINE__ . "\n", FILE_APPEND);
                 $this->firebase->addConversationMessage($activeTicketId, 'assistant', $reply);
-                file_put_contents('/srv/http/waha/extract-categories.log', date('c') . ' ' . __LINE__, FILE_APPEND);
+                file_put_contents('/srv/http/waha/extract-categories.log', date('c') . ' ' . __LINE__ . "\n", FILE_APPEND);
             } catch (DatabaseException $e) {
-                file_put_contents('/srv/http/waha/extract-categories.log', date('c') . ' ' . __LINE__, FILE_APPEND);
+                file_put_contents('/srv/http/waha/extract-categories.log', date('c') . ' ' . __LINE__ . "\n", FILE_APPEND);
                 file_put_contents(
                     '/srv/http/waha/firebase-error.log',
                     '[' . date('c') . '] ' . $e->getMessage(),
@@ -200,13 +201,13 @@ class WhatsAppWebhookController
     }
 
     /**
-     * Extracts CATEGORY and SEVERITY from LLM reply and removes them from the text.
+     * Extracts CATEGORY, SEVERITY, and SUBJECT from LLM reply and removes them from the text.
      * This version processes the reply line by line and has been improved for
      * better reliability in detecting and filtering command lines.
      *
      * @param string $llmReplyText The raw text response from the LLM.
      * @param array $allowedCategories An array of valid categories to validate against.
-     * @return array An array containing [filteredReplyText, extractedCategory, extractedSeverity].
+     * @return array An array containing [filteredReplyText, extractedCategory, extractedSeverity, extractedSubject].
      */
     private function extractAndCategorizeFromLLMReply(string $llmReplyText, array $allowedCategories): array
     {
@@ -220,17 +221,18 @@ class WhatsAppWebhookController
         $filteredLines = [];
         $extractedCategory = 'Uncategorized'; // Default category
         $extractedSeverity = 'Normal';        // Default severity/priority
+        $extractedSubject = '';               // Default subject
 
         // FIXED: This pattern is more flexible and matches the LLM's actual output format
         // (e.g., "+++ CATEGORY: HVAC") without requiring double square brackets.
-        $commandPattern = '/^\+\+\+\s*(CATEGORY|SEVERITY)\s*:\s*(.*)$/i';
+        $commandPattern = '/^\+\+\+\s*(CATEGORY|SEVERITY|SUBJECT)\s*:\s*(.*)$/i';
 
         foreach ($lines as $line) {
             $trimmedLine = trim($line);
 
             // Check if the entire line is a command line.
             if (preg_match($commandPattern, $trimmedLine, $matches)) {
-                // $matches[1] will be "CATEGORY" or "SEVERITY"
+                // $matches[1] will be "CATEGORY", "SEVERITY", or "SUBJECT"
                 // $matches[2] will be the value (e.g., "HVAC")
                 $key = strtoupper($matches[1]);
                 $value = trim($matches[2]);
@@ -241,7 +243,10 @@ class WhatsAppWebhookController
                     }
                 } elseif ($key === 'SEVERITY') {
                     $extractedSeverity = $value;
+                } elseif ($key === 'SUBJECT') {
+                    $extractedSubject = $value;
                 }
+
 
                 // This line is a command, so we skip adding it to the filtered output.
                 continue;
@@ -256,6 +261,6 @@ class WhatsAppWebhookController
         // or newlines that might result from the filtering process.
         $filteredReply = trim(implode("\n", $filteredLines));
 
-        return [$filteredReply, $extractedCategory, $extractedSeverity];
+        return [$filteredReply, $extractedCategory, $extractedSeverity, $extractedSubject];
     }
 }
