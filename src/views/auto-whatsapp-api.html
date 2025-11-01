@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="en">
+<!-- ==== ./auto-whatsapp-api.html ==== -->
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Automated WhatsApp API Documentation</title>
+    <link rel="stylesheet" href="/css/main.css" />
+</head>
+<body>
+    <div class="container">
+        <h1>Autonomo AI API Documentation</h1>
+        <p>Welcome to the API documentation for Autonomo AI's WhatsApp API</p>
+
+        <!-- Autonomo AI's Incoming WhatsApp Webhook Endpoint -->
+        <h2>Autonomo AI's Incoming WhatsApp Webhook</h2>
+        <div class="endpoint">
+            <p><span class="method POST">POST</span> <span class="url">/webhook/whatsapp</span></p>
+            <p>This endpoint is where Autonomo AI receives incoming messages from WhatsApp (after potentially being processed or adapted from a provider like WAHA). It forwards the message content to an LLM service for processing and sends the generated reply back to the user via WhatsApp.</p>
+            <p><strong>Security:</strong> This endpoint requires an <code>X-API-Key</code> header with a valid API key for authentication, which is internal to Autonomo AI's system.</p>
+            <p><strong>Request Body (JSON):</strong></p>
+            <p>The webhook expects a JSON payload containing message details. The critical fields are <code>message.from</code> (sender's ID) and <code>message.text</code> (message content). This format is often a simplified representation after initial parsing from a WhatsApp gateway like WAHA.</p>
+            <pre class="request-body-example"><code>{
+  "message": {
+    "from": "whatsapp:+1234567890",
+    "text": "Hello, can you help me with something?"
+  },
+  "//": "Other fields like 'type', 'timestamp', etc., might be present but are not processed by this webhook if not explicitly documented."
+}</code></pre>
+            <p><strong>Request Headers:</strong></p>
+            <ul class="params-list">
+                <li><span class="param">X-API-Key</span> <span class="param-type">(String)</span>: Your secret API key for Autonomo AI. <strong class="required">Required</strong></li>
+            </ul>
+            <p><strong>Parameters (in JSON body):</strong></p>
+            <ul class="params-list">
+                <li><span class="param">message</span> <span class="param-type">(Object)</span>: The main object containing message details. <strong class="required">Required</strong></li>
+                <li><span class="param">message.from</span> <span class="param-type">(String)</span>: The sender's unique identifier (e.g., a WhatsApp phone number prefixed with 'whatsapp:+'). <strong class="required">Required</strong></li>
+                <li><span class="param">message.text</span> <span class="param-type">(String)</span>: The content of the message sent by the user. <strong class="required">Required</strong></li>
+            </ul>
+            <p><strong>Responses:</strong></p>
+            <p><strong>200 OK:</strong> The webhook successfully received and authenticated the message. The reply will be sent asynchronously.</p>
+            <pre class="response-example"><code>{
+  "status": "ok"
+}</code></pre>
+            <p><strong>400 Bad Request:</strong> The payload was invalid or missing required fields.</p>
+            <pre class="response-example error"><code>{
+  "error": "Invalid payload"
+}</code></pre>
+            <p><strong>401 Unauthorized:</strong> The <code>X-API-Key</code> header was missing or invalid.</p>
+            <pre class="response-example error"><code>{
+  "success": false,
+  "message": "Unauthorized: Invalid or missing API Key."
+}</code></pre>
+        </div>
+
+        <!-- WAHA Incoming Webhook Formats -->
+        <h2>WAHA Incoming Webhook Formats</h2>
+        <p>This section describes the various JSON payloads that Autonomo AI's backend expects to receive from a configured WAHA instance's webhook, corresponding to different types of WhatsApp events. Autonomo AI's <code>/webhook/whatsapp</code> endpoint would then parse these and potentially convert them to its internal message format for processing.</p>
+
+        <!-- WAHA Text Message Event -->
+        <h3>Text Message Event (event: "message")</h3>
+        <div class="endpoint">
+            <p>Triggered when a user sends a standard text message to the WhatsApp number linked with WAHA.</p>
+            <p><strong>Example Webhook Payload:</strong></p>
+            <pre class="request-body-example"><code>{
+  "event": "message",
+  "session": "default",
+  "payload": {
+    "id": "true_11111111111@c.us_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+    "timestamp": 1667561485,
+    "from": "11111111111@c.us",
+    "fromMe": false,
+    "to": "11111111111@c.us",
+    "body": "Hi there!",
+    "hasMedia": false,
+    "ack": 1,
+    "vCards": [],
+    "_data": {
+      "//": "Internal WAHA data"
+    }
+  }
+}</code></pre>
+            <p><strong>Payload Fields:</strong></p>
+            <ul class="params-list">
+                <li><span class="param">event</span> <span class="param-type">(String)</span>: Type of event, typically "message". <strong class="required">Required</strong></li>
+                <li><span class="param">session</span> <span class="param-type">(String)</span>: The WAHA session name, e.g., "default". <strong class="required">Required</strong></li>
+                <li><span class="param">payload</span> <span class="param-type">(Object)</span>: Contains the message details. <strong class="required">Required</strong></li>
+                <li><span class="param">payload.id</span> <span class="param-type">(String)</span>: Unique ID of the message. <strong class="required">Required</strong></li>
+                <li><span class="param">payload.timestamp</span> <span class="param-type">(Number)</span>: Unix timestamp of when the message was sent. <strong class="required">Required</strong></li>
+                <li><span class="param">payload.from</span> <span class="param-type">(String)</span>: Sender's WhatsApp ID (e.g., "11111111111@c.us"). <strong class="required">Required</strong></li>
+                <li><span class="param">payload.fromMe</span> <span class="param-type">(Boolean)</span>: Indicates if the message was sent by the WAHA instance itself. <strong class="required">Required</strong></li>
+                <li><span class="param">payload.to</span> <span class="param-type">(String)</span>: Recipient's WhatsApp ID. <strong class="required">Required</strong></li>
+                <li><span class="param">payload.body</span> <span class="param-type">(String)</span>: The content of the text message. <strong class="required">Required</strong></li>
+                <li><span class="param">payload.hasMedia</span> <span class="param-type">(Boolean)</span>: <code>false</code> for text messages. <strong class="required">Required</strong></li>
+            </ul>
+        </div>
+
+        <!-- WAHA Message Reaction Event -->
+        <h3>Message Reaction Event (event: "message.reaction")</h3>
+        <div class="endpoint">
+            <p>Triggered when a user adds, removes, or changes an emoji reaction to a message.</p>
+            <p><strong>Example Webhook Payload:</strong></p>
+            <pre class="request-body-example"><code>{
+    "event": "message.reaction",
+    "session": "default",
+    "me": {
+        "id": "79222222222@c.us",
+        "pushName": "WAHA"
+    },
+    "payload": {
+        "id": "false_79111111@c.us_11111111111111111111111111111111",
+        "from": "79111111@c.us",
+        "fromMe": false,
+        "participant": "79111111@c.us",
+        "to": "79111111@c.us",
+        "timestamp": 1710481111.853,
+        "reaction": {
+            "text": "🙏",
+            "messageId": "true_79111111@c.us_11111111111111111111111111111111"
+        }
+    },
+    "engine": "WEBJS",
+    "environment": {
+        "version": "2024.3.3",
+        "engine": "WEBJS",
+        "tier": "PLUS",
+        "browser": "/usr/bin/google-chrome-stable"
+    }
+}</code></pre>
+            <p><strong>Payload Fields:</strong></p>
+            <ul class="params-list">
+                <li><span class="param">event</span> <span class="param-type">(String)</span>: Type of event, "message.reaction". <strong class="required">Required</strong></li>
+                <li><span class="param">session</span> <span class="param-type">(String)</span>: The WAHA session name. <strong class="required">Required</strong></li>
+                <li><span class="param">payload</span> <span class="param-type">(Object)</span>: Contains reaction details. <strong class="required">Required</strong></li>
+                <li><span class="param">payload.id</span> <span class="param-type">(String)</span>: ID of the reaction event. <strong class="required">Required</strong></li>
+                <li><span class="param">payload.from</span> <span class="param-type">(String)</span>: WhatsApp ID of the user who reacted. <strong class="required">Required</strong></li>
+                <li><span class="param">payload.reaction</span> <span class="param-type">(Object)</span>: Details of the reaction. <strong class="required">Required</strong></li>
+                <li><span class="param">payload.reaction.text</span> <span class="param-type">(String)</span>: The emoji character for the reaction (e.g., "🙏"). <strong class="required">Required</strong></li>
+                <li><span class="param">payload.reaction.messageId</span> <span class="param-type">(String)</span>: The ID of the message to which the reaction was applied. <strong class="required">Required</strong></li>
+            </ul>
+        </div>
+
+        <!-- WAHA Media Message Event -->
+        <h3>Media Message Event (event: "message")</h3>
+        <div class="endpoint">
+            <p>Triggered when a user sends any type of media (image, video, audio, document) to the WhatsApp number linked with WAHA.</p>
+            <p><strong>Example Webhook Payload:</strong></p>
+            <pre class="request-body-example"><code>{
+  "event": "message",
+  "session": "default",
+  "payload": {
+    "id": "true_11111111111@c.us_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+    "timestamp": 1667561485,
+    "body": "Check this out (caption for the media)!",
+    "from": "11111111111@c.us",
+    "hasMedia": true,
+    "media": {
+      "url": "http://localhost:3000/api/files/true_11111111111@c.us_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA.jpg",
+      "mimetype": "image/jpeg",
+      "filename": null,
+      "error": null
+    }
+  }
+}</code></pre>
+            <p><strong>Payload Fields:</strong></p>
+            <ul class="params-list">
+                <li><span class="param">event</span> <span class="param-type">(String)</span>: Type of event, "message". <strong class="required">Required</strong></li>
+                <li><span class="param">session</span> <span class="param-type">(String)</span>: The WAHA session name. <strong class="required">Required</strong></li>
+                <li><span class="param">payload</span> <span class="param-type">(Object)</span>: Contains the media message details. <strong class="required">Required</strong></li>
+                <li><span class="param">payload.id</span> <span class="param-type">(String)</span>: Unique ID of the message. <strong class="required">Required</strong></li>
+                <li><span class="param">payload.timestamp</span> <span class="param-type">(Number)</span>: Unix timestamp of when the message was sent. <strong class="required">Required</strong></li>
+                <li><span class="param">payload.from</span> <span class="param-type">(String)</span>: Sender's WhatsApp ID. <strong class="required">Required</strong></li>
+                <li><span class="param">payload.body</span> <span class="param-type">(String)</span>: The caption associated with the media, if any. <em>Optional</em></li>
+                <li><span class="param">payload.hasMedia</span> <span class="param-type">(Boolean)</span>: <code>true</code> for media messages. <strong class="required">Required</strong></li>
+                <li><span class="param">payload.media</span> <span class="param-type">(Object)</span>: Details about the media file. <strong class="required">Required</strong></li>
+                <li><span class="param">payload.media.url</span> <span class="param-type">(String)</span>: URL to download the media file. <strong class="required">Required</strong></li>
+                <li><span class="param">payload.media.mimetype</span> <span class="param-type">(String)</span>: MIME type of the media (e.g., "image/jpeg", "video/mp4"). <strong class="required">Required</strong></li>
+                <li><span class="param">payload.media.filename</span> <span class="param-type">(String)</span>: Original filename of the media, if available. <em>Optional</em></li>
+                <li><span class="param">payload.media.error</span> <span class="param-type">(String)</span>: Error message if media download failed. <em>Optional</em></li>
+            </ul>
+        </div>
+
+        <!-- Sending Messages via WAHA API (Outgoing) -->
+        <h2>Sending Messages via WAHA API (Outgoing)</h2>
+        <p>To send messages and manage chat presence on WhatsApp, Autonomo AI leverages the WAHA API. This section outlines the recommended process and specific API endpoints to ensure compliant and human-like interaction and to avoid being flagged as spam by WhatsApp.</p>
+
+        <h3>Important Guidelines: How to Process Messages</h3>
+        <p>When processing messages in your bot, it’s important to follow certain steps to avoid being flagged as spam. Here’s a recommended process to follow:</p>
+        <ol>
+            <li><strong>Send seen before processing the message.</strong> This can be done by sending a <code>POST /api/sendSeen/</code> request to the WAHA API.</li>
+            <li><strong>Start typing before sending a message and wait for a random interval depending on the size of the message.</strong> This can be done by sending a <code>POST /api/startTyping/</code> request.</li>
+            <li><strong>Stop typing before sending the message.</strong> This can be done by sending a <code>POST /api/stopTyping/</code> request.</li>
+            <li><strong>Send the text message using the <code>POST /api/sendText</code> request.</strong></li>
+        </ol>
+        <p>By following these steps, you can ensure that your bot processes messages in a way that’s compliant with WhatsApp’s guidelines and reduces the risk of being blocked.</p>
+
+        <!-- WAHA Send Seen Endpoint -->
+        <h3>Send Seen</h3>
+        <div class="endpoint">
+            <p><span class="method POST">POST</span> <span class="url">/api/sendSeen</span></p>
+            <p>Sends a "seen" (read) receipt for all unread messages in a given chat. This is crucial for avoiding blocking and mimicking human behavior.</p>
+            <p><strong>Request Body (JSON):</strong></p>
+            <pre class="request-body-example"><code>{
+  "session": "default",
+  "chatId": "11111111111@c.us"
+}</code></pre>
+            <p><strong>Parameters (in JSON body):</strong></p>
+            <ul class="params-list">
+                <li><span class="param">session</span> <span class="param-type">(String)</span>: The WAHA session name, typically "default". <strong class="required">Required</strong></li>
+                <li><span class="param">chatId</span> <span class="param-type">(String)</span>: The WhatsApp ID of the chat (e.g., "11111111111@c.us"). <strong class="required">Required</strong></li>
+            </ul>
+            <p><strong>Responses:</strong></p>
+            <p><strong>200 OK:</strong> Request to send seen receipt was accepted.</p>
+            <pre class="response-example"><code>{
+  "success": true,
+  "message": "Seen receipt sent"
+}</code></pre>
+            <p><strong>400 Bad Request:</strong> Invalid <code>chatId</code> or missing parameters.</p>
+            <pre class="response-example error"><code>{
+  "success": false,
+  "message": "Invalid chatId provided."
+}</code></pre>
+        </div>
+
+        <!-- WAHA Start Typing Endpoint -->
+        <h3>Start Typing</h3>
+        <div class="endpoint">
+            <p><span class="method POST">POST</span> <span class="url">/api/startTyping</span></p>
+            <p>Sets the chat presence to "typing" for a specified duration, indicating that the bot is preparing a response. This makes interactions feel more natural.</p>
+            <p><strong>Request Body (JSON):</strong></p>
+            <pre class="request-body-example"><code>{
+  "session": "default",
+  "chatId": "111111111@c.us",
+  "presence": "typing"
+}</code></pre>
+            <p><strong>Parameters (in JSON body):</strong></p>
+            <ul class="params-list">
+                <li><span class="param">session</span> <span class="param-type">(String)</span>: The WAHA session name. <strong class="required">Required</strong></li>
+                <li><span class="param">chatId</span> <span class="param-type">(String)</span>: The WhatsApp ID of the chat. <strong class="required">Required</strong></li>
+                <li><span class="param">presence</span> <span class="param-type">(String)</span>: Must be "typing". <strong class="required">Required</strong></li>
+            </ul>
+            <p><strong>Responses:</strong></p>
+            <p><strong>200 OK:</strong> Typing presence initiated.</p>
+            <pre class="response-example"><code>{
+  "success": true,
+  "message": "Typing presence set to 'typing'"
+}</code></pre>
+        </div>
+
+        <!-- WAHA Stop Typing Endpoint -->
+        <h3>Stop Typing</h3>
+        <div class="endpoint">
+            <p><span class="method POST">POST</span> <span class="url">/api/stopTyping</span></p>
+            <p>Resets the chat presence from "typing" back to "paused" or normal, typically done just before sending the actual message.</p>
+            <p><strong>Request Body (JSON):</strong></p>
+            <pre class="request-body-example"><code>{
+  "session": "default",
+  "chatId": "111111111@c.us",
+  "presence": "paused"
+}</code></pre>
+            <p><strong>Parameters (in JSON body):</strong></p>
+            <ul class="params-list">
+                <li><span class="param">session</span> <span class="param-type">(String)</span>: The WAHA session name. <strong class="required">Required</strong></li>
+                <li><span class="param">chatId</span> <span class="param-type">(String)</span>: The WhatsApp ID of the chat. <strong class="required">Required</strong></li>
+                <li><span class="param">presence</span> <span class="param-type">(String)</span>: Must be "paused". <strong class="required">Required</strong></li>
+            </ul>
+            <p><strong>Responses:</strong></p>
+            <p><strong>200 OK:</strong> Typing presence stopped.</p>
+            <pre class="response-example"><code>{
+  "success": true,
+  "message": "Typing presence set to 'paused'"
+}</code></pre>
+        </div>
+
+        <!-- WAHA Send Text Message Endpoint -->
+        <h3>Send Text Message</h3>
+        <div class="endpoint">
+            <p><span class="method POST">POST</span> <span class="url">/api/sendText</span></p>
+            <p>Sends a standard text message to a specified WhatsApp chat.</p>
+            <p><strong>Request Body (JSON):</strong></p>
+            <pre class="request-body-example"><code>{
+  "session": "default",
+  "chatId": "11111111111@c.us",
+  "message": "This is your reply from Autonomo AI!"
+}</code></pre>
+            <p><strong>Parameters (in JSON body):</strong></p>
+            <ul class="params-list">
+                <li><span class="param">session</span> <span class="param-type">(String)</span>: The WAHA session name. <strong class="required">Required</strong></li>
+                <li><span class="param">chatId</span> <span class="param-type">(String)</span>: The WhatsApp ID of the recipient chat. <strong class="required">Required</strong></li>
+                <li><span class="param">message</span> <span class="param-type">(String)</span>: The text content of the message to send. <strong class="required">Required</strong></li>
+            </ul>
+            <p><strong>Responses:</strong></p>
+            <p><strong>200 OK:</strong> Message successfully queued for sending.</p>
+            <pre class="response-example"><code>{
+  "success": true,
+  "message": "Message sent successfully",
+  "id": "true_11111111111@c.us_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+}</code></pre>
+            <p><strong>400 Bad Request:</strong> Invalid <code>chatId</code> or missing <code>message</code> content.</p>
+            <pre class="response-example error"><code>{
+  "success": false,
+  "message": "Invalid message or chatId provided."
+}</code></pre>
+            <p><strong>500 Internal Server Error:</strong> An error occurred on the WAHA server.</p>
+            <pre class="response-example error"><code>{
+  "success": false,
+  "message": "Failed to send message due to an internal server error."
+}</code></pre>
+        </div>
+
+        <!-- New Section: Autonomo Concierge API Endpoints -->
+        <h2>Autonomo Concierge</h2>
+
+        <!-- Voice Stream Endpoint -->
+        <h3>Realtime Bidirectional Voice Stream</h3>
+        <div class="endpoint">
+            <p><span class="method POST">POST</span> <span class="url">/voice/stream</span></p>
+            <p>Streams human microphone audio to the AI and returns synthesized audio in real time. Implemented via HTTP/2 streaming or WebSocket.</p>
+            <p><strong>Operation ID:</strong> <code>streamVoice</code></p>
+            <p><strong>Security:</strong> Requires <code>X-Api-Key</code> header.</p>
+            <p><strong>Request Body:</strong></p>
+            <p>Accepts audio data in WAV, WEBM, or generic binary format.</p>
+            <pre class="request-body-example"><code>// Example payload would be raw binary audio data
+Content-Type: audio/wav
+// or
+Content-Type: audio/webm
+// or
+Content-Type: application/octet-stream
+
+(Binary Audio Data)</pre>
+            <p><strong>Request Headers:</strong></p>
+            <ul class="params-list">
+                <li><span class="param">X-Api-Key</span> <span class="param-type">(String)</span>: Your API key. <strong class="required">Required</strong></li>
+                <li><span class="param">X-Device-ID</span> <span class="param-type">(String)</span>: Optional device identifier. <em>Optional</em></li>
+            </ul>
+            <p><strong>Responses:</strong></p>
+            <p><strong>200 OK:</strong> Streamed AI voice response (audio or interleaved metadata).</p>
+            <p><strong>Content Types:</strong></p>
+            <ul class="params-list">
+                <li><span class="param">audio/mpeg</span> <span class="param-type">(Binary)</span>: Synthesized speech in MP3 format.</li>
+                <li><span class="param">audio/opus</span> <span class="param-type">(Binary)</span>: Synthesized speech in Opus format.</li>
+                <li><span class="param">application/json</span> <span class="param-type">(Object)</span>: Metadata about the AI response. <pre><code class="language-json">{
+  "type": "metadata",
+  "conversation_id": "a1b2c3d4-e5f6-7890-1234-567890abcdef",
+  "timestamp": 1678886400,
+  "ai_text": "How can I help you today?",
+  "emotion": "neutral",
+  "model": "gpt-4"
+}</code></pre></li>
+            </ul>
+            <p><strong>400 Bad Request:</strong> Invalid audio format.</p>
+            <pre class="response-example error"><code>{
+  "error": "Invalid audio format",
+  "message": "The provided audio data could not be processed."
+}</code></pre>
+            <p><strong>401 Unauthorized:</strong> Authentication failed.</p>
+            <pre class="response-example error"><code>{
+  "error": "Unauthorized",
+  "message": "Invalid or missing API key."
+}</code></pre>
+            <p><strong>500 Server Error:</strong> An internal server error occurred.</p>
+            <pre class="response-example error"><code>{
+  "error": "Internal Server Error",
+  "message": "An unexpected error occurred on the server."
+}</code></pre>
+        </div>
+
+        <!-- Voice Upload Endpoint -->
+        <h3>Upload Recorded Voice Clip</h3>
+        <div class="endpoint">
+            <p><span class="method POST">POST</span> <span class="url">/voice</span></p>
+            <p>Non-streaming fallback endpoint: client uploads a full audio clip and receives an AI-generated speech reply.</p>
+            <p><strong>Operation ID:</strong> <code>uploadVoice</code></p>
+            <p><strong>Security:</strong> Requires <code>X-Api-Key</code> header.</p>
+            <p><strong>Request Body:</strong></p>
+            <p>Uses <code>multipart/form-data</code> to upload the audio file and associated metadata.</p>
+            <pre class="request-body-example"><code>--boundary
+Content-Disposition: form-data; name="voice"; filename="recording.wav"
+Content-Type: audio/wav
+
+(Binary Audio Data)
+--boundary
+Content-Disposition: form-data; name="lang"
+
+en-US
+--boundary
+Content-Disposition: form-data; name="user"
+
+a1b2c3d4-e5f6-7890-1234-567890abcdef
+--boundary--</code></pre>
+            <p><strong>Request Headers:</strong></p>
+            <ul class="params-list">
+                <li><span class="param">X-Api-Key</span> <span class="param-type">(String)</span>: Your API key. <strong class="required">Required</strong></li>
+            </ul>
+            <p><strong>Parameters (in multipart/form-data):</strong></p>
+            <ul class="params-list">
+                <li><span class="param">voice</span> <span class="param-type">(File)</span>: Audio file (WAV/WEBM/OPUS, 16 kHz mono). <strong class="required">Required</strong></li>
+                <li><span class="param">lang</span> <span class="param-type">(String)</span>: Language code (e.g., "en-US"). <em>Optional, defaults to system default.</em></li>
+                <li><span class="param">user</span> <span class="param-type">(String)</span>: UUID of the user making the request. <em>Optional</em></li>
+            </ul>
+            <p><strong>Responses:</strong></p>
+            <p><strong>200 OK:</strong> Binary audio (MP3/Opus) representing the AI's speech reply.</p>
+            <pre class="response-example"><code>Content-Type: audio/mpeg
+
+(Binary MP3 Audio Data)</code></pre>
+            <p><strong>400 Bad Request:</strong> Invalid input (e.g., wrong file format, missing fields).</p>
+            <pre class="response-example error"><code>{
+  "error": "Bad Request",
+  "message": "Invalid file format or missing required parameters."
+}</code></pre>
+            <p><strong>401 Unauthorized:</strong> Authentication failed.</p>
+            <pre class="response-example error"><code>{
+  "error": "Unauthorized",
+  "message": "Invalid or missing API key."
+}</code></pre>
+        </div>
+
+        <!-- Text Chat Fallback Endpoint -->
+        <h3>Text Chat Fallback</h3>
+        <div class="endpoint">
+            <p><span class="method POST">POST</span> <span class="url">/ai/chat</span></p>
+            <p>Text-based alternative for debugging or non-voice clients.</p>
+            <p><strong>Operation ID:</strong> <code>chatAI</code></p>
+            <p><strong>Security:</strong> Requires <code>X-Api-Key</code> header.</p>
+            <p><strong>Request Body (JSON):</strong></p>
+            <pre class="request-body-example"><code>{
+  "session": "a1b2c3d4-e5f6-7890-1234-567890abcdef",
+  "text": "What is the weather like today?"
+}</code></pre>
+            <p><strong>Request Headers:</strong></p>
+            <ul class="params-list">
+                <li><span class="param">X-Api-Key</span> <span class="param-type">(String)</span>: Your API key. <strong class="required">Required</strong></li>
+            </ul>
+            <p><strong>Parameters (in JSON body):</strong></p>
+            <ul class="params-list">
+                <li><span class="param">session</span> <span class="param-type">(String)</span>: Unique identifier for the conversation session (UUID). <strong class="required">Required</strong></li>
+                <li><span class="param">text</span> <span class="param-type">(String)</span>: The user's text message. <strong class="required">Required</strong></li>
+            </ul>
+            <p><strong>Responses:</strong></p>
+            <p><strong>200 OK:</strong> AI text reply and optional TTS link.</p>
+            <pre class="response-example"><code>{
+  "reply": "The weather today is sunny with a high of 75 degrees Fahrenheit.",
+  "tts_url": "https://cdn.autonomo.codes/tts/reply_12345.mp3"
+}</code></pre>
+            <p><strong>400 Bad Request:</strong> Invalid input (e.g., missing required fields).</p>
+            <pre class="response-example error"><code>{
+  "error": "Invalid Input",
+  "message": "Missing required fields 'session' or 'text'."
+}</code></pre>
+            <p><strong>401 Unauthorized:</strong> Authentication failed.</p>
+            <pre class="response-example error"><code>{
+  "error": "Unauthorized",
+  "message": "Invalid or missing API key."
+}</code></pre>
+        </div>
+
+    </div> <!-- End of container -->
+</body>
+</html>
+

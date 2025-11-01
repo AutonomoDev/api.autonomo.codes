@@ -34,7 +34,9 @@
         "0.0.0/composer-include-files": "^1.6",
         "autonomo/ai-speaker": "^1.0",
         "ext-curl": "*",
-        "symfony/var-dumper": "^7.3"
+        "symfony/var-dumper": "^7.3",
+        "kreait/firebase-php": "^7.16",
+        "giggsey/libphonenumber-for-php-lite": "^9.0"
     },
     "require-dev": {
         "phpunit/phpunit": "*",

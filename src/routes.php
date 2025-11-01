@@ -4,6 +4,7 @@
 use Pecee\SimpleRouter\SimpleRouter;
 use Autonomo\API\Controllers\VolunteerController;
 use Autonomo\API\Controllers\ChartController;
+use Autonomo\API\WAHA\Controllers\PromptController;
 use Autonomo\API\WAHA\Controllers\WhatsAppWebhookController;
 
 error_reporting(E_ALL); // Add for development debugging
@@ -68,7 +69,35 @@ SimpleRouter::get('/charts/pie', function() {
 
 SimpleRouter::post('/webhook/whatsapp', [WhatsAppWebhookController::class, 'handle']);
 
+// // Route for displaying the edit form (GET request, with admin password gate)
+// SimpleRouter::get('/concierge/prompt',  [PromptController::class, 'edit']);
+// SimpleRouter::post('/concierge/prompt', [PromptController::class, 'handle']);
 
+// Handles both the GET request for the form and the two different POST requests
+// (admin login vs. prompt save) for the /concierge/prompt endpoint.
+SimpleRouter::all('/concierge/prompt', function () {
+    // We need an instance of our controller to call its methods.
+    $controller = new PromptController();
+
+    // If it's a POST request, we need to figure out which kind it is.
+    if (request()->getMethod() === 'post') {
+
+        // The key distinction: The final "Save Prompt" form sends a 'prompt_content' field,
+        // but the initial admin login form does not.
+        if (request()->getInputHandler()->exists('prompt_content')) {
+            // This is the prompt SAVE action. Route to handle().
+            return $controller->handle();
+        } else {
+            // This is the admin password LOGIN action. Route to edit() to process the password.
+            return $controller->edit();
+        }
+
+    }
+
+    // If it's not a POST request, it must be a GET request.
+    // The default action is to show the login/edit page.
+    return $controller->edit();
+});
 // ===================================================
 // WAHA Webhook Endpoint
 // ===================================================

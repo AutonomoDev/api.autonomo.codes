@@ -13,22 +13,6 @@ class LLMWhatsAppBridge
 
     private function loadDotEnv(): void
     {
-        // Only load Dotenv if not already loaded
-        if (!class_exists(\Dotenv\Dotenv::class)) {
-            // Try to include Composer's autoloader
-            $autoload = __DIR__ . '/../../../vendor/autoload.php';
-            if (file_exists($autoload)) {
-                require_once $autoload;
-            } else {
-                throw new \RuntimeException("Composer autoload not found at: {$autoload}");
-            }
-        }
-
-        // Verify vlucas/phpdotenv is installed
-        if (!class_exists(\Dotenv\Dotenv::class)) {
-            throw new \RuntimeException('vlucas/phpdotenv is not installed. Run: composer require vlucas/phpdotenv');
-        }
-
         // Define the .env path
         $envPath = realpath(__DIR__ . '/../../../');
         if ($envPath === false) {
@@ -66,6 +50,7 @@ class LLMWhatsAppBridge
         // 2. Prepare the request data
         $apiKey = env('WAHA_API_KEY');
         if (!$apiKey) {
+            file_put_contents('/srv/http/waha/no-key.txt',  date('c') . ': No WAHA_API_KEY', FILE_APPEND);
             throw new \RuntimeException('WAHA_API_KEY is not set in your .env file.');
         }
 
@@ -75,7 +60,7 @@ class LLMWhatsAppBridge
         $phone = substr($chatId, 0, strpos($chatId, '@'));
 
         $storage = __DIR__ . '/../../../storage/';
-        $prompt = file_get_contents($storage . '/prompt.md');
+        $systemPrompt = file_get_contents($storage . '/prompt.md');
         $answers = file_get_contents($storage . '/faq.tsv');
         $tenants = file_get_contents($storage . '/tenants.tsv');
         $vendors = file_get_contents($storage . '/vendors.tsv');
@@ -83,10 +68,34 @@ class LLMWhatsAppBridge
         $systemPrompt = str_replace(
             ['[[TENANTS]]', '[[VENDORS]]', '[[FAQ]]'],
             [$tenants, $vendors, $answers],
-            $prompt
+            $systemPrompt
         );
 
-        $actualPrompt = "Incoming phone number ($phone) --- \n" . implode("\n", $prompt);
+        file_put_contents('/srv/http/waha/system.txt', $systemPrompt);
+        // 1. Initialize an empty string to build the conversation content
+        $promptString = "";
+        file_put_contents('/srv/http/waha/extract-categories.log', date('c') . ' ' . __LINE__ . "\n");
+
+        // 2. Loop through each message in the $prompt array
+        foreach ($prompt as $message) {
+            file_put_contents('/srv/http/waha/extract-categories.log', date('c') . ' ' . __LINE__ . "\n====\n" .print_r($prompt, true), FILE_APPEND);
+            $role = $message['role'];
+            $content = $message['content'];
+
+            // 3. Append the formatted role and content to $promptString
+            //    We'll capitalize the role for better readability and add two newlines
+            //    to create a blank line between messages.
+            $promptString .= strtoupper($role) . ": " . $content . "\n\n";
+        }
+        file_put_contents('/srv/http/waha/extract-categories.log', date('c') . ' ' . __LINE__ . "\n", FILE_APPEND);
+
+        // 4. Use rtrim to remove any trailing newlines that might be left from the last message
+        $promptString = rtrim($promptString);
+        file_put_contents('/srv/http/waha/extract-categories.log', date('c') . ' ' . __LINE__ . "\n", FILE_APPEND);
+
+        $actualPrompt = "Incoming phone number ($phone) --- \n" . $promptString;
+        file_put_contents('/srv/http/waha/extract-categories.log', date('c') . ' ' . __LINE__ . "\n", FILE_APPEND);
+        file_put_contents('/srv/http/waha/debug.txt', 'SYSTEM: ' . $systemPrompt . "\n\n" . $actualPrompt);
         $response = $this->ai->chat([['role' => 'user', 'content' => $actualPrompt]], $systemPrompt);
         file_put_contents('/srv/http/waha/llm-reply-' . time() . '.log', print_r($response, true) . "\n", FILE_APPEND);
 

@@ -19,6 +19,23 @@ class WhatsAppService
 //        $this->api = new RESTSpeaker($auth, rtrim(env('WAHA_API_URL'), '/') . '/');
     }
 
+    public function startTyping()
+    {
+        $wahaApiUrl = env('WAHA_API_URL');
+        $apiKey = env('WAHA_API_KEY');
+
+        $command = sprintf(
+            "curl -X 'POST' \\
+              '%s/api/sendText' \\
+              -H 'accept: application/json' \\
+              -H 'Content-Type: application/json' \\
+              -H 'X-Api-Key: %s'",
+            $wahaApiUrl,
+            $apiKey
+        );
+        shell_exec($command . ' 2>&1');
+    }
+
     public function sendText(string $chatId, string $text, ?string $replyTo = null): void
     {
         $wahaApiUrl = env('WAHA_API_URL');
@@ -54,7 +71,7 @@ class WhatsAppService
               -H 'Content-Type: application/json' \\
               -H 'X-Api-Key: %s' \\
               -d %s",
-                $wahaApiUrl,
+            $wahaApiUrl,
             $apiKey,
             $escapedJsonData
         );
