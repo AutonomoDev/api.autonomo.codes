@@ -85,7 +85,10 @@ class WhatsAppWebhookController
         // Define allowed categories for validation and ticket creation
         $allowedCategories = ['HVAC', 'Plumbing', 'Electrical', 'Noise Complaint', 'FAQ'];
 
-        $wa->startTyping();
+        $wa->sendSeen($chatId, $messageId);
+        usleep(mt_rand(15000, 2500000));
+        $wa->startTyping($chatId);
+
         try {
             $activeTicketId = null;
             $ticketData = null;
@@ -137,6 +140,7 @@ class WhatsAppWebhookController
 
             // Get the AI reply from our WhatsApp LLM Bridge.
             $replyResponse = $AI->chat([['role' => 'user', 'content' => $message]], $chatId);
+            $wa->stopTyping($chatId);
 
             // Debug log from original
             file_put_contents('/srv/http/waha/whatsapp.log', print_r($replyResponse, true) . "\n", FILE_APPEND);

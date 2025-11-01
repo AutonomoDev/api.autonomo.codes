@@ -19,20 +19,72 @@ class WhatsAppService
 //        $this->api = new RESTSpeaker($auth, rtrim(env('WAHA_API_URL'), '/') . '/');
     }
 
-    public function startTyping()
+    public function sendSeen(string $chatId, string $messageId)
     {
-        $wahaApiUrl = env('WAHA_API_URL');
+        $wahaApiUrl = rtrim(env('WAHA_API_URL'), '/');
         $apiKey = env('WAHA_API_KEY');
 
         $command = sprintf(
             "curl -X 'POST' \\
-              '%s/api/sendText' \\
+              '%s/api/sendSeen' \\
               -H 'accept: application/json' \\
               -H 'Content-Type: application/json' \\
-              -H 'X-Api-Key: %s'",
+              -H 'X-Api-Key: %s' \\
+              -d '%s'"
+            ,
             $wahaApiUrl,
-            $apiKey
+            $apiKey,
+            json_encode([
+                'session' => 'default',
+                'chatId' => $chatId,
+                'messageIds' => [$messageId],
+                'participant' => null
+            ])
         );
+        file_put_contents('/srv/http/waha/curl.log', $command . "\n", FILE_APPEND);
+        shell_exec($command . ' 2>&1');
+    }
+
+    public function startTyping(string $chatId)
+    {
+        $wahaApiUrl = rtrim(env('WAHA_API_URL'), '/');
+        $apiKey = env('WAHA_API_KEY');
+
+        $command = sprintf(
+            "curl -X 'POST' \\
+              '%s/api/startTyping' \\
+              -H 'accept: application/json' \\
+              -H 'Content-Type: application/json' \\
+              -H 'X-Api-Key: %s' \\
+              -d '%s'"
+            ,
+            $wahaApiUrl,
+            $apiKey,
+            json_encode(['session' => 'default', 'chatId' => $chatId])
+        );
+        file_put_contents('/srv/http/waha/curl.log', $command . "\n", FILE_APPEND);
+        shell_exec($command . ' 2>&1');
+    }
+
+
+    public function stopTyping(string $chatId)
+    {
+        $wahaApiUrl = rtrim(env('WAHA_API_URL'), '/');
+        $apiKey = env('WAHA_API_KEY');
+
+        $command = sprintf(
+            "curl -X 'POST' \\
+              '%s/api/stopTyping' \\
+              -H 'accept: application/json' \\
+              -H 'Content-Type: application/json' \\
+              -H 'X-Api-Key: %s' \\
+              -d '%s'"
+            ,
+            $wahaApiUrl,
+            $apiKey,
+            json_encode(['session' => 'default', 'chatId' => $chatId])
+        );
+        file_put_contents('/srv/http/waha/curl.log', $command . "\n", FILE_APPEND);
         shell_exec($command . ' 2>&1');
     }
 
