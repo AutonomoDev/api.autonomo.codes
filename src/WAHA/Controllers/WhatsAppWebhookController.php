@@ -142,9 +142,17 @@ class WhatsAppWebhookController
             file_put_contents('/srv/http/waha/whatsapp.log', print_r($replyResponse, true) . "\n", FILE_APPEND);
 
             $initialLLMReplyText = $replyResponse['content'][0]['text'] ?? '';
+
+            // Filter every $llmReplyText that starts with "### " into /srv/http/waha/llm-reply-internal-' . time() . '.log
+            // This logs the entire raw LLM response if its first line starts with "### "
+            if (str_starts_with($initialLLMReplyText, '### ')) {
+                file_put_contents('/srv/http/waha/llm-reply-internal-' . time() . '.log', $initialLLMReplyText);
+            }
+
             file_put_contents('/srv/http/waha/extract-categories.log', date('c') . ' ' . __LINE__);
 
             // Extract category, severity, and subject from LLM reply and filter the text
+            // The extractAndCategorizeFromLLMReply method will now also remove lines starting with "### "
             [$filteredReplyForUser, $category, $severity, $subject] = $this->extractAndCategorizeFromLLMReply(
                 $initialLLMReplyText,
                 $allowedCategories
@@ -223,14 +231,24 @@ class WhatsAppWebhookController
         $extractedSeverity = 'Normal';        // Default severity/priority
         $extractedSubject = '';               // Default subject
 
-        // FIXED: This pattern is more flexible and matches the LLM's actual output format
-        // (e.g., "+++ CATEGORY: HVAC") without requiring double square brackets.
+        // Pattern for internal notes that should be filtered out
+        $internalNotePattern = '/^###\s*(.*)$/';
+
+        // Pattern for metadata commands
         $commandPattern = '/^\+\+\+\s*(CATEGORY|SEVERITY|SUBJECT)\s*:\s*(.*)$/i';
 
         foreach ($lines as $line) {
             $trimmedLine = trim($line);
 
-            // Check if the entire line is a command line.
+            // FIRST: Check if the line is an internal note (###) and filter it out
+            if (preg_match($internalNotePattern, $trimmedLine)) {
+                // This line is an internal note, skip it from the filtered output.
+                // The logging of the entire $llmReplyText if it starts with "### " is handled
+                // in the `handle` method.
+                continue;
+            }
+
+            // SECOND: Check if the line is a metadata command (+++)
             if (preg_match($commandPattern, $trimmedLine, $matches)) {
                 // $matches[1] will be "CATEGORY", "SEVERITY", or "SUBJECT"
                 // $matches[2] will be the value (e.g., "HVAC")
@@ -247,12 +265,11 @@ class WhatsAppWebhookController
                     $extractedSubject = $value;
                 }
 
-
                 // This line is a command, so we skip adding it to the filtered output.
                 continue;
             }
 
-            // If the line is not a special command, keep it for the user reply.
+            // If the line is not an internal note or a special command, keep it for the user reply.
             // We add the original, unmodified line to preserve original formatting and indentation.
             $filteredLines[] = $line;
         }
