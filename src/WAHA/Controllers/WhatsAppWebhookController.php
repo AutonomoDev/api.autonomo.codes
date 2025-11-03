@@ -45,7 +45,7 @@ class WhatsAppWebhookController
         $message   = trim($payload['body'] ?? '');
         $isFromMe  = $payload['fromMe'] ?? false;
 
-        // Debugging logs from original file
+        // Debugging logs
         file_put_contents('/srv/http/waha/payload-' . time() . '.json', $raw);
         file_put_contents('/srv/http/waha/asdf.net', print_r([
             'payload'   => $payload,
@@ -72,7 +72,7 @@ class WhatsAppWebhookController
             }
             $logMessage .= "\n" . print_r($payload, true);
             file_put_contents('/srv/http/waha/bugged-' . time(), $logMessage);
-            file_put_contents($logDir . '/ignored-' . time(), print_r($payload, true)); // from firebase version
+            file_put_contents($logDir . '/ignored-' . time(), print_r($payload, true));
             http_response_code(200);
             echo json_encode(['status' => 'ignored_invalid_or_self_message']);
             return;
@@ -116,7 +116,7 @@ class WhatsAppWebhookController
 
                 $ticketData = [
                     'ticketId'     => $activeTicketId,
-                    'category'     => 'Uncategorized', // Default, will be updated by LLM output
+                    'category'     => 'Uncategorized',
                     'residentId'   => 'UNKNOWN',
                     'residentName' => $payload['_data']['notifyName'] ?? 'Unknown',
                     'phoneNumber'  => $phoneNumber,
@@ -135,14 +135,12 @@ class WhatsAppWebhookController
                 ];
             }
 
-            // Debug log from original
             file_put_contents('/srv/http/waha/whatsapp.log', print_r([$chatId, $message], true) . "\n", FILE_APPEND);
 
             // Get the AI reply from our WhatsApp LLM Bridge.
             $replyResponse = $AI->chat([['role' => 'user', 'content' => $message]], $chatId);
             $wa->stopTyping($chatId);
 
-            // Debug log from original
             file_put_contents('/srv/http/waha/whatsapp.log', print_r($replyResponse, true) . "\n", FILE_APPEND);
 
             $initialLLMReplyText = $replyResponse['content'][0]['text'] ?? '';
@@ -156,63 +154,85 @@ class WhatsAppWebhookController
             file_put_contents('/srv/http/waha/extract-categories.log', date('c') . ' ' . __LINE__);
 
             // Extract metadata from LLM reply and filter the text for the user
-            // This now returns an associative array for easier access and extensibility.
-            $extractedData = $this->extractAndCategorizeFromLLMReply( // CHANGED: Variable name
+            $extractedData = $this->extractAndCategorizeFromLLMReply(
                 $initialLLMReplyText,
                 $allowedCategories
             );
-            file_put_contents('/srv/http/waha/llm-reply-filtered-' . time() . '.log', print_r($extractedData, true) . "\n", FILE_APPEND); // CHANGED: logging the whole array
-
-            // Update ticket metadata with extracted information and latest timestamp
-            if ($ticketData) { // $ticketData should always be set here, either new or existing
-                $ticketData['category'] = $extractedData['category'];
-                $ticketData['priority'] = $extractedData['severity'];
-                if (!empty($extractedData['subject'])) {
-                    $ticketData['summary'] = $extractedData['subject'];
-                }
-                // ADDED: Update ticket with newly extracted data
-                if (!empty($extractedData['residentName'])) {
-                    // Note: The LLM command is RESIDENT_ID, but it seems to provide a name.
-                    // We are updating the 'residentName' field in the ticket.
-                    $ticketData['residentName'] = $extractedData['residentName'];
-                }
-                if (!empty($extractedData['actionTaken'])) {
-                    // We can add this to a new field or push it to a history array.
-                    // For simplicity, let's add a new field 'lastActionTaken'.
-                    $ticketData['lastActionTaken'] = $extractedData['actionTaken'];
-                }
-                // END ADDED
-
-                $ticketData['timestamp'] = (new DateTimeImmutable())->format(DateTimeInterface::ATOM);
-                $this->firebase->saveTicket($ticketData);
-            }
+            file_put_contents('/srv/http/waha/llm-reply-filtered-' . time() . '.log', print_r($extractedData, true) . "\n", FILE_APPEND);
 
             file_put_contents('/srv/http/waha/extract-categories.log', date('c') . ' ' . $extractedData['category'] . "\n", FILE_APPEND);
-            $reply = $extractedData['text']; // CHANGED: Accessing the filtered text from the returned array
+            $reply = $extractedData['text'];
 
-            // Send the reply using the WhatsAppService.
+            // Check if category is FAQ - if so, delete ticket and don't save
+            $isFAQ = ($extractedData['category'] === 'FAQ');
+            
+            if ($isFAQ) {
+                // If there's an active ticket, delete it
+                if ($activeTicketId) {
+                    try {
+                        $this->firebase->deleteTicket($activeTicketId);
+                        file_put_contents(
+                            '/srv/http/waha/faq-ticket-deleted.log',
+                            '[' . date('c') . '] Deleted FAQ ticket: ' . $activeTicketId . ' for chat: ' . $chatId . "\n",
+                            FILE_APPEND
+                        );
+                    } catch (Exception $e) {
+                        file_put_contents(
+                            '/srv/http/waha/firebase-error.log',
+                            '[' . date('c') . '] Error deleting FAQ ticket: ' . $e->getMessage() . "\n",
+                            FILE_APPEND
+                        );
+                    }
+                }
+            } else {
+                // Only update and save ticket if it's NOT an FAQ
+                if ($ticketData) {
+                    $ticketData['category'] = $extractedData['category'];
+                    $ticketData['priority'] = $extractedData['severity'];
+                    if (!empty($extractedData['subject'])) {
+                        $ticketData['summary'] = $extractedData['subject'];
+                    }
+                    if (!empty($extractedData['residentName'])) {
+                        $ticketData['residentName'] = $extractedData['residentName'];
+                    }
+                    if (!empty($extractedData['actionTaken'])) {
+                        $ticketData['lastActionTaken'] = $extractedData['actionTaken'];
+                    }
+
+                    $ticketData['timestamp'] = (new DateTimeImmutable())->format(DateTimeInterface::ATOM);
+                    $this->firebase->saveTicket($ticketData);
+                }
+            }
+
+            // Send the reply using the WhatsAppService
             $wa->sendText($chatId, $reply, $messageId);
 
-            // Add assistant reply to Firebase
-            try {
-                file_put_contents('/srv/http/waha/extract-categories.log', date('c') . ' ' . __LINE__ . "\n", FILE_APPEND);
-                $this->firebase->addConversationMessage($activeTicketId, 'assistant', $reply);
-                file_put_contents('/srv/http/waha/extract-categories.log', date('c') . ' ' . __LINE__ . "\n", FILE_APPEND);
-            } catch (DatabaseException $e) {
-                file_put_contents('/srv/http/waha/extract-categories.log', date('c') . ' ' . __LINE__ . "\n", FILE_APPEND);
-                file_put_contents(
-                    '/srv/http/waha/firebase-error.log',
-                    '[' . date('c') . '] ' . $e->getMessage() . "\n" . $e->getTraceAsString() . "\n"  . str_repeat('-', 80) . "\n",
-                    FILE_APPEND
-                );
+            // Only add assistant reply to Firebase if NOT an FAQ
+            if (!$isFAQ) {
+                try {
+                    file_put_contents('/srv/http/waha/extract-categories.log', date('c') . ' ' . __LINE__ . "\n", FILE_APPEND);
+                    $this->firebase->addConversationMessage($activeTicketId, 'assistant', $reply);
+                    file_put_contents('/srv/http/waha/extract-categories.log', date('c') . ' ' . __LINE__ . "\n", FILE_APPEND);
+                } catch (DatabaseException $e) {
+                    file_put_contents('/srv/http/waha/extract-categories.log', date('c') . ' ' . __LINE__ . "\n", FILE_APPEND);
+                    file_put_contents(
+                        '/srv/http/waha/firebase-error.log',
+                        '[' . date('c') . '] ' . $e->getMessage() . "\n" . $e->getTraceAsString() . "\n"  . str_repeat('-', 80) . "\n",
+                        FILE_APPEND
+                    );
+                }
             }
             file_put_contents('/srv/http/waha/extract-categories.log', date('c') . ' ' . __LINE__, FILE_APPEND);
 
             http_response_code(200);
             header('Content-Type: application/json');
-            echo json_encode(['status' => 'ok', 'ticketId' => $activeTicketId, 'reply_sent' => true]);
+            echo json_encode([
+                'status' => 'ok', 
+                'ticketId' => $isFAQ ? null : $activeTicketId,
+                'reply_sent' => true,
+                'category' => $extractedData['category']
+            ]);
 
-            // Final debug log from original (fixed syntax)
             file_put_contents($logDir . '/log.txt', date('c') . " - OK\n", FILE_APPEND);
 
         } catch (Exception $e) {
@@ -227,8 +247,7 @@ class WhatsAppWebhookController
 
     /**
      * Extracts metadata from LLM reply and removes command lines from the text.
-     * This version processes the reply line by line and has been improved for
-     * better reliability in detecting and filtering command lines.
+     * Processes the reply line by line for better reliability in detecting and filtering command lines.
      *
      * @param string $llmReplyText The raw text response from the LLM.
      * @param array $allowedCategories An array of valid categories to validate against.
@@ -237,44 +256,42 @@ class WhatsAppWebhookController
      */
     private function extractAndCategorizeFromLLMReply(string $llmReplyText, array $allowedCategories): array
     {
-        // Use a more robust method to split lines, handling \n, \r, and \r\n line endings.
+        // Use a more robust method to split lines, handling \n, \r, and \r\n line endings
         $lines = preg_split('/\R/u', $llmReplyText);
         if ($lines === false) {
-            // In case of a preg_split error, treat the input as a single line.
+            // In case of a preg_split error, treat the input as a single line
             $lines = [$llmReplyText];
         }
 
         $filteredLines = [];
-        // CHANGED: Initialize an associative array for the results.
         $extractedData = [
             'text'         => '',
             'category'     => 'Uncategorized',
             'severity'     => 'Normal',
             'subject'      => '',
-            'residentName' => '', // ADDED
-            'actionTaken'  => '', // ADDED
+            'residentName' => '',
+            'actionTaken'  => '',
         ];
 
         // Pattern for internal notes that should be filtered out
         $internalNotePattern = '/^###\s*(.*)$/';
 
-        // CHANGED: Added RESIDENT_ID and ACTION_TAKEN to the command pattern
+        // Pattern for metadata commands
         $commandPattern = '/^\+\+\+\s*(CATEGORY|SEVERITY|SUBJECT|RESIDENT_ID|ACTION_TAKEN)\s*:\s*(.*)$/iu';
 
         foreach ($lines as $line) {
             $trimmedLine = trim($line);
 
-            // FIRST: Check if the line is an internal note (###) and filter it out
+            // Check if the line is an internal note (###) and filter it out
             if (preg_match($internalNotePattern, $trimmedLine)) {
                 continue;
             }
 
-            // SECOND: Check if the line is a metadata command (+++)
+            // Check if the line is a metadata command (+++)
             if (preg_match($commandPattern, $trimmedLine, $matches)) {
                 $key = strtoupper($matches[1]);
                 $value = trim($matches[2]);
 
-                // CHANGED: Switched to a more extensible switch statement
                 switch ($key) {
                     case 'CATEGORY':
                         if (in_array($value, $allowedCategories, true)) {
@@ -287,10 +304,7 @@ class WhatsAppWebhookController
                     case 'SUBJECT':
                         $extractedData['subject'] = $value;
                         break;
-                    // ADDED: New cases for the requested data
                     case 'RESIDENT_ID':
-                        // Although the key is RESIDENT_ID, the value is a name.
-                        // We map it to 'residentName' for clarity.
                         $extractedData['residentName'] = $value;
                         break;
                     case 'ACTION_TAKEN':
@@ -298,18 +312,18 @@ class WhatsAppWebhookController
                         break;
                 }
 
-                // This line is a command, so we skip adding it to the filtered output.
+                // This line is a command, so skip adding it to the filtered output
                 continue;
             }
 
-            // If the line is not an internal note or a special command, keep it for the user reply.
+            // If the line is not an internal note or a special command, keep it for the user reply
             $filteredLines[] = $line;
         }
 
         // Join the remaining lines back together and trim any leading/trailing whitespace
         $filteredReply = trim(implode("\n", $filteredLines));
-        $extractedData['text'] = $filteredReply; // CHANGED: Assign the final filtered text
+        $extractedData['text'] = $filteredReply;
 
-        return $extractedData; // CHANGED: Return the associative array
+        return $extractedData;
     }
 }

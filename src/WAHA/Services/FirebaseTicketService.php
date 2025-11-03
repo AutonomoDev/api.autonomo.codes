@@ -1,7 +1,5 @@
-<?php
-// ==== src/Autonomo/API/WAHA/Services/FirebaseTicketService.php ====
-
-declare(strict_types=1);
+<?php declare(strict_types=1);
+// ==== src/WAHA/Services/FirebaseTicketService.php ====
 
 namespace Autonomo\API\WAHA\Services;
 
@@ -77,6 +75,31 @@ class FirebaseTicketService
         }
 
         return $tickets;
+    }
+
+    /**
+     * Deletes a ticket by its ID.
+     *
+     * @param string $ticketId
+     * @param bool $throwIfNotExists Whether to throw an exception if ticket doesn't exist
+     * @return bool True if deleted, false if ticket didn't exist (when $throwIfNotExists is false)
+     * @throws RuntimeException If ticket doesn't exist and $throwIfNotExists is true
+     * @throws \Kreait\Firebase\Exception\DatabaseException
+     */
+    public function deleteTicket(string $ticketId, bool $throwIfNotExists = false): bool
+    {
+        $ticketRef = $this->database->getReference('tickets/' . $ticketId);
+
+        $snapshot = $ticketRef->getSnapshot();
+        if (!$snapshot->exists()) {
+            if ($throwIfNotExists) {
+                throw new RuntimeException("Ticket {$ticketId} does not exist.");
+            }
+            return false;
+        }
+
+        $ticketRef->remove();
+        return true;
     }
 
     /**
