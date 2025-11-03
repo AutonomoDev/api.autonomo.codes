@@ -202,7 +202,7 @@ class WhatsAppWebhookController
                 file_put_contents('/srv/http/waha/extract-categories.log', date('c') . ' ' . __LINE__ . "\n", FILE_APPEND);
                 file_put_contents(
                     '/srv/http/waha/firebase-error.log',
-                    '[' . date('c') . '] ' . $e->getMessage(),
+                    '[' . date('c') . '] ' . $e->getMessage() . "\n" . $e->getTraceAsString() . "\n"  . str_repeat('-', 80) . "\n",
                     FILE_APPEND
                 );
             }
@@ -238,7 +238,7 @@ class WhatsAppWebhookController
     private function extractAndCategorizeFromLLMReply(string $llmReplyText, array $allowedCategories): array
     {
         // Use a more robust method to split lines, handling \n, \r, and \r\n line endings.
-        $lines = preg_split('/\R/', $llmReplyText);
+        $lines = preg_split('/\R/u', $llmReplyText);
         if ($lines === false) {
             // In case of a preg_split error, treat the input as a single line.
             $lines = [$llmReplyText];
@@ -259,7 +259,7 @@ class WhatsAppWebhookController
         $internalNotePattern = '/^###\s*(.*)$/';
 
         // CHANGED: Added RESIDENT_ID and ACTION_TAKEN to the command pattern
-        $commandPattern = '/^\+\+\+\s*(CATEGORY|SEVERITY|SUBJECT|RESIDENT_ID|ACTION_TAKEN)\s*:\s*(.*)$/i';
+        $commandPattern = '/^\+\+\+\s*(CATEGORY|SEVERITY|SUBJECT|RESIDENT_ID|ACTION_TAKEN)\s*:\s*(.*)$/iu';
 
         foreach ($lines as $line) {
             $trimmedLine = trim($line);
