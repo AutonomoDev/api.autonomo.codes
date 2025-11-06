@@ -9,6 +9,8 @@ use Throwable;
 class WhatsAppService
 {
     private RESTSpeaker $api;
+    private string $wahaURL;
+    private string $apiKey;
 
     public function __construct()
     {
@@ -17,12 +19,14 @@ class WhatsAppService
         // We'll keep the RESTSpeaker initialized but won't use it for sendText as per new requirements.
 //        $auth = new WAHAAuth(env('WAHA_API_KEY'));
 //        $this->api = new RESTSpeaker($auth, rtrim(env('WAHA_API_URL'), '/') . '/');
+
+        $this->wahaURL = rtrim(env('WAHA_API_URL'), '/');
+        $this->apiKey = env('WAHA_API_KEY');
     }
 
     public function sendSeen(string $chatId, string $messageId)
     {
-        $wahaApiUrl = rtrim(env('WAHA_API_URL'), '/');
-        $apiKey = env('WAHA_API_KEY');
+        $escapedApiKey = escapeshellarg($this->apiKey);
 
         $command = sprintf(
             "curl -X 'POST' \\
@@ -32,8 +36,8 @@ class WhatsAppService
               -H 'X-Api-Key: %s' \\
               -d '%s'"
             ,
-            $wahaApiUrl,
-            $apiKey,
+            $this->wahaURL,
+            $escapedApiKey,
             json_encode([
                 'session' => 'default',
                 'chatId' => $chatId,
@@ -47,8 +51,7 @@ class WhatsAppService
 
     public function startTyping(string $chatId)
     {
-        $wahaApiUrl = rtrim(env('WAHA_API_URL'), '/');
-        $apiKey = env('WAHA_API_KEY');
+        $escapedApiKey = escapeshellarg($this->apiKey);
 
         $command = sprintf(
             "curl -X 'POST' \\
@@ -58,8 +61,8 @@ class WhatsAppService
               -H 'X-Api-Key: %s' \\
               -d '%s'"
             ,
-            $wahaApiUrl,
-            $apiKey,
+            $this->wahaURL,
+            $escapedApiKey,
             json_encode(['session' => 'default', 'chatId' => $chatId])
         );
         file_put_contents('/srv/http/waha/curl.log', $command . "\n", FILE_APPEND);
@@ -69,8 +72,7 @@ class WhatsAppService
 
     public function stopTyping(string $chatId)
     {
-        $wahaApiUrl = rtrim(env('WAHA_API_URL'), '/');
-        $apiKey = env('WAHA_API_KEY');
+        $escapedApiKey = escapeshellarg($this->apiKey);
 
         $command = sprintf(
             "curl -X 'POST' \\
@@ -80,8 +82,8 @@ class WhatsAppService
               -H 'X-Api-Key: %s' \\
               -d '%s'"
             ,
-            $wahaApiUrl,
-            $apiKey,
+            $this->wahaURL,
+            $escapedApiKey,
             json_encode(['session' => 'default', 'chatId' => $chatId])
         );
         file_put_contents('/srv/http/waha/curl.log', $command . "\n", FILE_APPEND);
@@ -90,8 +92,7 @@ class WhatsAppService
 
     public function sendText(string $chatId, string $text, ?string $replyTo = null): void
     {
-        $wahaApiUrl = env('WAHA_API_URL');
-        $apiKey = env('WAHA_API_KEY');
+        $escapedApiKey = escapeshellarg($this->apiKey);
 
         $payload = [
             'chatId' => $chatId,
@@ -110,8 +111,6 @@ class WhatsAppService
 
         // Escape the JSON data for safe inclusion in the shell command
         $escapedJsonData = escapeshellarg($jsonData);
-//        $escapedApiKey = escapeshellarg($apiKey);
-        $wahaApiUrl = rtrim($wahaApiUrl, '/');
 
         // Construct the curl command directly from the shell script provided.
         // We're replacing the dynamic parts with PHP variables.
@@ -123,8 +122,8 @@ class WhatsAppService
               -H 'Content-Type: application/json' \\
               -H 'X-Api-Key: %s' \\
               -d %s",
-            $wahaApiUrl,
-            $apiKey,
+            $this->wahaURL,
+            $escapedApiKey,
             $escapedJsonData
         );
         file_put_contents('/srv/http/waha/curl-' . time() . '.txt', $command);
