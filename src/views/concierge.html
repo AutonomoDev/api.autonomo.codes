@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WAHA Webhook & Interactive Processor (Dev Dashboard)</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background-color: #f4f4f4; color: #333; }
+        h1, h2 { color: #0056b3; }
+        .dashboard-container { display: flex; flex-wrap: wrap; gap: 20px; } /* Use flex-wrap for responsiveness */
+        .panel { flex: 1; min-width: 300px; background-color: #fff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); padding: 20px; }
+        .message-list { list-style: none; padding: 0; }
+        .message-item { background-color: #e9ecef; border: 1px solid #dee2e6; margin-bottom: 10px; padding: 10px; border-radius: 5px; }
+        .message-item pre { white-space: pre-wrap; word-wrap: break-word; font-size: 0.9em; background-color: #f8f9fa; padding: 5px; border-radius: 3px; max-height: 200px; overflow-y: auto; }
+        .message-item .timestamp { font-size: 0.8em; color: #6c757d; }
+        .message-item .actions button { margin-left: 5px; padding: 5px 10px; border: none; border-radius: 4px; cursor: pointer; }
+        .message-item .actions .process { background-color: #28a745; color: white; }
+        .message-item .actions .delete { background-color: #dc3545; color: white; }
+        .message-item.status-processing { background-color: #ffc107; } /* Yellow */
+        .message-item.status-error { background-color: #f8d7da; border-color: #f5c6cb; color: #721c24; } /* Red */
+        .message-item.status-completed { background-color: #d4edda; border-color: #c3e6cb; color: #155724; } /* Green */
+        .refresh-button { padding: 10px 15px; background-color: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; margin-bottom: 20px; }
+        .refresh-button:hover { background-color: #0056b3; }
+        details { border: 1px solid #ccc; border-radius: 5px; padding: 10px; margin-top: 10px; background-color: #f9f9f9; }
+        summary { font-weight: bold; cursor: pointer; outline: none; }
+
+        /* Simulator specific styles */
+        .simulator-chat-window { border: 1px solid #ddd; border-radius: 5px; height: 400px; overflow-y: scroll; padding: 10px; margin-bottom: 10px; background-color: #e0e0e0; }
+        .chat-message { margin-bottom: 8px; padding: 8px 12px; border-radius: 15px; max-width: 80%; }
+        .chat-message.user { background-color: #007bff; color: white; margin-left: auto; text-align: right; }
+        .chat-message.assistant { background-color: #f0f0f0; color: #333; margin-right: auto; text-align: left; }
+        .chat-input-area { display: flex; gap: 10px; margin-top: 10px; }
+        .chat-input-area input[type="text"] { flex-grow: 1; padding: 8px; border: 1px solid #ccc; border-radius: 5px; }
+        .chat-input-area button { padding: 8px 15px; background-color: #28a745; color: white; border: none; border-radius: 5px; cursor: pointer; }
+    </style>
+</head>
+<body>
+<h1>WAHA Webhook & Interactive Processor (Development Dashboard)</h1>
+<p>This dashboard allows you to manage incoming webhook payloads and interact with the AI directly, bypassing WhatsApp.</p>
+<button class="refresh-button" onclick="refreshQueues()">Refresh All Queues</button>
+
+<div class="dashboard-container">
+    <!-- New Interactive Simulator Panel -->
+    <div class="panel" style="flex: 2;">
+        <h2>Interactive AI Simulator</h2>
+        <p>Type messages here to interact with the AI directly. AI replies will appear below and *not* be sent to WhatsApp.</p>
+        <label for="simulated-chat-id">Simulated Chat ID:</label>
+        <input type="text" id="simulated-chat-id" value="+18323039477" placeholder="e.g., +1234567890" style="width: 100%; padding: 8px; margin-bottom: 10px;">
+
+        <div id="simulator-chat-window" class="simulator-chat-window">
+            <!-- Chat messages will be appended here -->
+            <div class="chat-message assistant">Welcome to the AI simulator! Enter a message above to start.</div>
+        </div>
+
+        <div class="chat-input-area">
+            <input type="text" id="user-message-input" placeholder="Type your message here..." onkeypress="if(event.keyCode==13) sendSimulatedMessage()">
+            <button onclick="sendSimulatedMessage()">Send to AI</button>
+        </div>
+        <button onclick="clearConversationHistory()" style="background-color: #ff8c00; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; margin-top: 10px;">Clear Conversation</button>
+    </div>
+
+    <div class="panel">
+        <h2>Queued Webhooks</h2>
+        <p>Payloads with status 'pending' or 'error' are shown here, waiting for processing.</p>
+        <ul id="queued-webhooks" class="message-list">
+            <li>No queued webhooks.</li>
+        </ul>
+    </div>
+
+    <div class="panel">
+        <h2>Processed Messages</h2>
+        <p>Successfully processed webhooks (status 'completed').</p>
+        <ul id="processed-webhooks" class="message-list">
+            <li>No processed messages.</li>
+        </ul>
+    </div>
+</div>
+
+<script>
+    const QUEUED_WEBHOOKS_LIST = document.getElementById('queued-webhooks');
+    const PROCESSED_WEBHOOKS_LIST = document.getElementById('processed-webhooks');
+    const SIMULATOR_CHAT_WINDOW = document.getElementById('simulator-chat-window');
+    const USER_MESSAGE_INPUT = document.getElementById('user-message-input');
+    const SIMULATED_CHAT_ID_INPUT = document.getElementById('simulated-chat-id');
+    const AJAX_ENDPOINT = 'ajax.php';
+
+    async function fetchData(url, method = 'GET', data = null) {
+        const options = { method };
+        if (data) {
+            options.body = new URLSearchParams(data);
+            options.headers = {
+                'Content-Type': 'application/x-www-form-urlencoded'
+            };
+        }
+        try {
+            const response = await fetch(url, options);
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
+            }
+            return await response.json();
+        } catch (error) {
+            console.error('Fetch error:', error);
+            alert('Error: ' + error.message);
+            throw error;
+        }
+    }
+
+    function renderQueuedWebhooks(webhooks) {
+        QUEUED_WEBHOOKS_LIST.innerHTML = '';
+        if (webhooks.length === 0) {
+            QUEUED_WEBHOOKS_LIST.innerHTML = '<li>No queued webhooks.</li>';
+            return;
+        }
+
+        webhooks.forEach(webhook => {
+            const item = document.createElement('li');
+            item.className = `message-item status-${webhook.status}`;
+            item.setAttribute('data-id', webhook.id);
+
+            let payloadPreview = { from: 'N/A', body: 'N/A' };
+            try {
+                const parsed = JSON.parse(webhook.raw_payload);
+                payloadPreview.from = parsed.payload?.from || 'N/A';
+                payloadPreview.body = parsed.payload?.body || 'N/A';
+            } catch (e) {}
+
+            item.innerHTML = `
+                    <p class="timestamp">Received: ${new Date(webhook.timestamp).toLocaleString()}</p>
+                    <p><strong>Status:</strong> <span style="text-transform: capitalize;">${webhook.status}</span></p>
+                    ${webhook.error ? `<p style="color: red;"><strong>Error:</strong> ${webhook.error}</p>` : ''}
+                    <p><strong>From:</strong> ${payloadPreview.from}</p>
+                    <p><strong>Message:</strong> ${payloadPreview.body}</p>
+                    <details>
+                        <summary>Raw Payload (Click to expand)</summary>
+                        <pre>${webhook.raw_payload}</pre>
+                    </details>
+                    <div class="actions">
+                        <button class="process" onclick="processWebhook('${webhook.id}')" ${webhook.status === 'processing' ? 'disabled' : ''}>
+                            ${webhook.status === 'processing' ? 'Processing...' : 'Process Now'}
+                        </button>
+                        <button class="delete" onclick="deleteWebhook('${webhook.id}')">Delete</button>
+                    </div>
+                `;
+            QUEUED_WEBHOOKS_LIST.appendChild(item);
+        });
+    }
+
+    function renderProcessedWebhooks(webhooks) {
+        PROCESSED_WEBHOOKS_LIST.innerHTML = '';
+        if (webhooks.length === 0) {
+            PROCESSED_WEBHOOKS_LIST.innerHTML = '<li>No processed messages.</li>';
+            return;
+        }
+
+        webhooks.forEach(webhook => {
+            const item = document.createElement('li');
+            item.className = `message-item status-completed`;
+            const result = webhook.result || {};
+
+            item.innerHTML = `
+                    <p class="timestamp">Processed: ${new Date(webhook.timestamp).toLocaleString()}</p>
+                    <p><strong>From:</strong> ${result.chatId || 'N/A'}</p>
+                    <p><strong>User Message:</strong> ${result.user_message || 'N/A'}</p>
+                    <p><strong>AI Reply:</strong> ${result.reply_text || 'N/A'}</p>
+                    <p><strong>Category:</strong> ${result.category || 'N/A'}</p>
+                    <p><strong>Ticket ID:</strong> ${result.ticketId || 'N/A'}</p>
+                    <details>
+                        <summary>Full Result (Click to expand)</summary>
+                        <pre>${JSON.stringify(result, null, 2)}</pre>
+                    </details>
+                    <div class="actions">
+                        <button class="delete" onclick="deleteWebhook('${webhook.id}')">Delete</button>
+                    </div>
+                `;
+            PROCESSED_WEBHOOKS_LIST.appendChild(item);
+        });
+    }
+
+    async function refreshQueues() {
+        try {
+            const queued = await fetchData(`${AJAX_ENDPOINT}?action=get_queued_webhooks`);
+            renderQueuedWebhooks(queued);
+
+            const processed = await fetchData(`${AJAX_ENDPOINT}?action=get_processed_webhooks`);
+            renderProcessedWebhooks(processed);
+        } catch (error) {
+            console.error("Failed to refresh queues:", error);
+        }
+    }
+
+    async function processWebhook(id) {
+        if (!confirm('Are you sure you want to process this webhook?')) return;
+        try {
+            const item = document.querySelector(`li.message-item[data-id='${id}']`);
+            if (item) {
+                item.classList.remove('status-pending', 'status-error');
+                item.classList.add('status-processing');
+                const processButton = item.querySelector('.process');
+                if (processButton) {
+                    processButton.disabled = true;
+                    processButton.textContent = 'Processing...';
+                }
+            }
+
+            const response = await fetchData(`${AJAX_ENDPOINT}?action=process_webhook`, 'POST', { id: id });
+            if (response.status === 'success') {
+                alert('Webhook processed successfully!');
+            } else {
+                alert('Error processing webhook: ' + response.message);
+            }
+        } catch (error) {
+            console.error("Failed to process webhook:", error);
+            alert('Error processing webhook: ' + error.message);
+        } finally {
+            refreshQueues();
+        }
+    }
+
+    async function deleteWebhook(id) {
+        if (!confirm('Are you sure you want to delete this webhook payload?')) return;
+        try {
+            const response = await fetchData(`${AJAX_ENDPOINT}?action=delete_webhook`, 'POST', { id: id });
+            if (response.status === 'success') {
+                alert('Webhook payload deleted!');
+                refreshQueues();
+            } else {
+                alert('Error deleting webhook payload: ' + response.message);
+            }
+        } catch (error) {
+            console.error("Failed to delete webhook payload:", error);
+        }
+    }
+
+    // ==== Simulator Functions ====
+
+    async function loadConversationHistory(chatId) {
+        if (!chatId) {
+            SIMULATOR_CHAT_WINDOW.innerHTML = '<div class="chat-message assistant">Please enter a Simulated Chat ID to load history.</div>';
+            return;
+        }
+        try {
+            const response = await fetchData(`${AJAX_ENDPOINT}?action=get_conversation_history&chat_id=${encodeURIComponent(chatId)}`);
+            if (response.status === 'success' && response.history) {
+                SIMULATOR_CHAT_WINDOW.innerHTML = ''; // Clear existing
+                response.history.forEach(msg => {
+                    const msgElement = document.createElement('div');
+                    msgElement.className = `chat-message ${msg.role}`;
+                    msgElement.textContent = msg.content;
+                    SIMULATOR_CHAT_WINDOW.appendChild(msgElement);
+                });
+                SIMULATOR_CHAT_WINDOW.scrollTop = SIMULATOR_CHAT_WINDOW.scrollHeight; // Scroll to bottom
+            }
+        } catch (error) {
+            console.error("Failed to load conversation history:", error);
+            SIMULATOR_CHAT_WINDOW.innerHTML = `<div class="chat-message assistant">Error loading history: ${error.message}</div>`;
+        }
+    }
+
+    async function sendSimulatedMessage() {
+        const chatId = SIMULATED_CHAT_ID_INPUT.value.trim();
+        const userMessage = USER_MESSAGE_INPUT.value.trim();
+
+        if (!chatId) {
+            alert('Please enter a Simulated Chat ID.');
+            return;
+        }
+        if (!userMessage) {
+            alert('Please type a message.');
+            return;
+        }
+
+        // Display user message in chat window immediately
+        appendChatMessage('user', userMessage);
+        USER_MESSAGE_INPUT.value = ''; // Clear input
+
+        try {
+            const response = await fetchData(`${AJAX_ENDPOINT}?action=simulate_message`, 'POST', {
+                chat_id: chatId,
+                user_message: userMessage
+            });
+
+            if (response.status === 'success' && response.result) {
+                appendChatMessage('assistant', response.result.reply_text || 'No reply generated.');
+                console.log('Simulation Result:', response.result);
+            } else {
+                appendChatMessage('assistant', 'Error from AI: ' + (response.message || 'Unknown error.'));
+            }
+        } catch (error) {
+            console.error("Failed to simulate message:", error);
+            appendChatMessage('assistant', 'System Error: ' + error.message);
+        }
+    }
+
+    function appendChatMessage(role, content) {
+        const msgElement = document.createElement('div');
+        msgElement.className = `chat-message ${role}`;
+        msgElement.textContent = content;
+        SIMULATOR_CHAT_WINDOW.appendChild(msgElement);
+        SIMULATOR_CHAT_WINDOW.scrollTop = SIMULATOR_CHAT_WINDOW.scrollHeight; // Scroll to bottom
+    }
+
+    async function clearConversationHistory() {
+        if (!confirm('Are you sure you want to clear this conversation? This will start a new conversation for the AI.')) {
+            return;
+        }
+        const chatId = SIMULATED_CHAT_ID_INPUT.value.trim();
+        if (!chatId) {
+            alert('Please enter a Simulated Chat ID first.');
+            return;
+        }
+        // By requesting an empty message, we force the AI to start a new conversation if the timeout logic works
+        // A more robust way would be a dedicated "reset_conversation" endpoint.
+        // For now, let's just clear the display and rely on the timeout for the actual service.
+        SIMULATOR_CHAT_WINDOW.innerHTML = '<div class="chat-message assistant">Conversation history cleared. Type a new message to start fresh.</div>';
+        // You might want to actually send a "reset" command to the backend if ConversationService allowed it.
+        // For now, rely on `getActiveConversation` returning null after timeout or for a new topic.
+    }
+
+    // Initial load of the dashboard
+    document.addEventListener('DOMContentLoaded', () => {
+        refreshQueues();
+        const initialChatId = SIMULATED_CHAT_ID_INPUT.value.trim();
+        if (initialChatId) {
+            loadConversationHistory(initialChatId);
+        }
+        // Auto-load history when chat ID changes
+        SIMULATED_CHAT_ID_INPUT.addEventListener('change', () => {
+            loadConversationHistory(SIMULATED_CHAT_ID_INPUT.value.trim());
+        });
+    });
+</script>
+</body>
+</html>

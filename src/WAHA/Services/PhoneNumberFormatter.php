@@ -16,11 +16,13 @@ use libphonenumber\PhoneNumberUtil;
 class PhoneNumberFormatter
 {
     private PhoneNumberUtil $phoneUtil;
+    private WhatsAppService $wa;
 
-    public function __construct()
+    public function __construct(?WhatsAppService $whatsAppService = null)
     {
         // PhoneNumberUtil is a singleton for efficiency
         $this->phoneUtil = PhoneNumberUtil::getInstance();
+        $this->wa = $whatsAppService ?? new WhatsAppService();
     }
 
     /**
@@ -31,13 +33,18 @@ class PhoneNumberFormatter
      */
     public function formatFromChatId(string $chatId): string
     {
-        // 1. Extract the numeric part of the ID
-        $parts = explode('@', $chatId);
-        if (count($parts) < 1 || !ctype_digit($parts[0])) {
-            // This is not a standard user chat ID (e.g., a group ID), return it as is.
-            return $chatId;
+        // 1. Detect if it is a lid, and if so, convert to a phone number.
+        if (str_ends_with($chatId, '@lid')) {
+            $numberStr = $this->wa->getPhoneNumberFromLid($chatId);
+        } else {
+            // 2. Extract the numeric part of the ID
+            $parts = explode('@', $chatId);
+            if (count($parts) < 1 || !ctype_digit($parts[0])) {
+                // This is not a standard user chat ID (e.g., a group ID), return it as is.
+                return $chatId;
+            }
+            $numberStr = $parts[0];
         }
-        $numberStr = $parts[0];
 
         // 2. Prepend '+' to make it a valid E.164 format string for the parser.
         $e164Number = '+' . $numberStr;

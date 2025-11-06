@@ -22,6 +22,12 @@ SimpleRouter::get('/auto-whatsapp-api', function () {
     return file_get_contents(__DIR__ . '/views/auto-whatsapp-api.html');
 });
 
+SimpleRouter::get('/concierge', function () {
+    response()->header('Content-Type: text/html');
+    // Assumes index.html exists in src/views/
+    return file_get_contents(__DIR__ . '/views/concierge.html');
+});
+
 // API endpoint for AI companion volunteer signup
 SimpleRouter::post('/ai-companion/signup', function() {
     $controller = new VolunteerController();
