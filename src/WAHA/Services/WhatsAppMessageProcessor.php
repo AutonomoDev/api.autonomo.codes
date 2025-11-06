@@ -11,6 +11,8 @@ use Autonomo\API\WAHA\Services\PhoneNumberFormatter;
 use DateTimeImmutable;
 use DateTimeInterface;
 use Exception;
+use Kreait\Firebase\Exception\DatabaseException;
+use Kreait\Firebase\Exception\RuntimeException;
 
 class WhatsAppMessageProcessor
 {
@@ -20,16 +22,19 @@ class WhatsAppMessageProcessor
     private LLMWhatsAppBridge $AI;
     private PhoneNumberFormatter $formatter;
     private array $allowedCategories;
-    private bool $simulateMode; // New property to store simulation state
+    private bool $simulateMode;
+    private string $logDir;
 
     public function __construct(
         string $conversationStoragePath,
         int $conversationTimeoutSeconds,
         string $firebaseServiceAccountPath,
         string $firebaseDatabaseUrl,
-        bool $simulateMode = false // New constructor parameter
+        bool $simulateMode = false,
+        string $logDir = __DIR__ . '/../../../storage'
     ) {
-        $this->simulateMode = $simulateMode; // Store the flag
+        $this->simulateMode = $simulateMode;
+        $this->logDir = $logDir;
 
         // Initialize all services, passing simulateMode to WhatsAppService
         $this->firebase = new FirebaseTicketService(
@@ -99,7 +104,6 @@ class WhatsAppMessageProcessor
         // We ensure a '+' prefix for the chat ID to match libphonenumber parsing expectations.
         if (str_contains($chatId, '@') === false) {
             if (strlen($chatId) === 14) {
-                // assume it's a lid.
                 $formattedChatId = "$chatId@lid";
             } else {
                 $formattedChatId = "$chatId@c.us";
@@ -122,7 +126,7 @@ class WhatsAppMessageProcessor
                 'from'       => $formattedChatId,
                 't'          => $timestamp,
                 'type'       => 'chat',
-                'notifyName' => 'Simulated User', // Placeholder for simulation
+                'notifyName' => 'Simulated User',
                 '_serialized'=> true
             ]
         ];
@@ -145,11 +149,9 @@ class WhatsAppMessageProcessor
      */
     private function _processMessageCore(string $chatId, string $message, string $messageId, array $payload): array
     {
-        // --- WhatsApp UI Feedback (now handled by WhatsAppService's simulateApiCalls flag) ---
-        // These calls will either hit the real WAHA API or be logged, depending on simulateMode.
         $this->wa->sendSeen($chatId, $messageId);
-        if (!$this->simulateMode) { // Only introduce artificial delay in real mode
-            usleep(mt_rand(15000, 2500000)); // Simulate thinking time
+        if (!$this->simulateMode) {
+            usleep(mt_rand(15000, 2500000));
         }
         $this->wa->startTyping($chatId);
 
@@ -170,16 +172,28 @@ class WhatsAppMessageProcessor
             // Add the user's new message to the history.
             $this->conversationService->appendMessage($conversation, 'user', $message);
 
-            // Get the AI reply from our WhatsApp LLM Bridge, passing the full conversation history for context.
+            file_put_contents($this->logDir . '/whatsapp.log', "[INCOMING] " . print_r(['chatId' => $chatId, 'message' => $message], true) . "\n", FILE_APPEND);
+
             $replyResponse = $this->AI->chat($conversation['messages'], $chatId);
-            $this->wa->stopTyping($chatId); // Stop typing after LLM response is received
+            $this->wa->stopTyping($chatId);
+
+            file_put_contents($this->logDir . '/whatsapp.log', "[LLM_RESPONSE] " . print_r($replyResponse, true) . "\n", FILE_APPEND);
 
             $initialLLMReplyText = $replyResponse['content'][0]['text'] ?? 'Sorry, I could not process that.';
 
             // Extract metadata from LLM reply and filter the text for the user.
+            if (str_starts_with($initialLLMReplyText, '### ')) {
+                file_put_contents($this->logDir . '/llm-reply-internal-' . time() . '.log', $initialLLMReplyText);
+            }
+
+            file_put_contents($this->logDir . '/extract-categories.log', date('c') . ' ' . __LINE__ . " - Before extractAndCategorizeFromLLMReply\n", FILE_APPEND);
+
             $extractedData = $this->extractAndCategorizeFromLLMReply($initialLLMReplyText, $this->allowedCategories);
             $reply = $extractedData['text'];
             
+            file_put_contents($this->logDir . '/llm-reply-filtered-' . time() . '.log', "[FILTERED_LLM_REPLY] " . print_r($reply, true) . "\n", FILE_APPEND);
+
+
             // --- Topic Change Logic ---
             $newCategory = $extractedData['category'];
             $currentTopic = $conversation['topic'];
@@ -268,49 +282,57 @@ class WhatsAppMessageProcessor
                 if (!empty($extractedData['actionTaken'])) $ticketData['lastActionTaken'] = $extractedData['actionTaken'];
                 $ticketData['timestamp'] = $timestamp;
 
-                // Save to Firebase
                 $this->firebase->saveTicket($ticketData);
-                // Also add the user and assistant messages to the Firebase ticket's own log
+
+                file_put_contents($this->logDir . '/extract-categories.log', date('c') . ' ' . __LINE__ . " - Adding user msg to Firebase ticket convo\n", FILE_APPEND);
                 $this->firebase->addConversationMessage($activeTicketId, 'user', $message);
+
+                file_put_contents($this->logDir . '/extract-categories.log', date('c') . ' ' . __LINE__ . " - Adding assistant reply to Firebase ticket convo\n", FILE_APPEND);
                 $this->firebase->addConversationMessage($activeTicketId, 'assistant', $reply);
             }
 
-            // Send the reply via WhatsApp (this call is now controlled by WhatsAppService's simulateMode)
+            file_put_contents($this->logDir . '/extract-categories.log', date('c') . ' ' . ($extractedData['category'] ?? 'N/A') . " - Category assigned after extraction.\n", FILE_APPEND);
+
             $this->wa->sendText($chatId, $reply, $messageId);
             error_log("WAHA Message Processor: Sent reply to {$chatId}. (Simulate: {$this->simulateMode})");
 
-            // Return detailed results for the AJAX frontend
             return [
-                'status' => 'ok', 
-                'ticketId' => $isFAQ ? null : $activeTicketId,
-                'reply_sent' => true,
-                'category' => $extractedData['category'],
-                'reply_text' => $reply, 
-                'chatId' => $chatId,
-                'messageId' => $messageId,
-                'user_message' => $message,
-                'conversation_topic' => $conversation['topic'], // Include current conversation topic
-                'extractedData' => $extractedData 
+                'status'             => 'ok',
+                'ticketId'           => $isFAQ ? null : $activeTicketId,
+                'reply_sent'         => true,
+                'category'           => $extractedData['category'],
+                'reply_text'         => $reply,
+                'chatId'             => $chatId,
+                'messageId'          => $messageId,
+                'user_message'       => $message,
+                'conversation_topic' => $conversation['topic'],
+                'extractedData'      => $extractedData
             ];
 
+        } catch (DatabaseException $e) {
+            error_log('Firebase Database Error in WhatsAppMessageProcessor: ' . $e->getMessage());
+            file_put_contents(
+                $this->logDir . '/firebase-error.log',
+                '[' . date('c') . '] ' . $e->getMessage() . "\n",
+                FILE_APPEND
+            );
+            throw new RuntimeException("Firebase operation failed for chatId {$chatId}: " . $e->getMessage(), 0, $e);
         } catch (Exception $e) {
             error_log('Error in WhatsAppMessageProcessor: ' . $e->getMessage());
-            // Attempt to send an error message back to WhatsApp if processing failed (if not in simulate mode)
-            if (!$this->simulateMode) {
-                try {
-                    $this->wa->sendText($chatId, "I'm sorry, I encountered a server error while processing your request. Please try again later.", $messageId);
-                } catch (Exception $e2) {
-                    error_log('Failed to send error message back to WhatsApp after processor error: ' . $e2->getMessage());
-                }
-            }
-            // Re-throw the original exception to be caught by the AJAX handler
-            throw new Exception("Processing failed for chatId {$chatId}: " . $e->getMessage(), 0, $e);
+            // This causes endless loops.
+            //if (!$this->simulateMode) {
+            //    try {
+            //        $this->wa->sendText($chatId, "I'm sorry, I encountered a server error while processing your request. Please try again later.", $messageId);
+            //    } catch (Exception $e2) {
+            //        error_log('Failed to send error message back to WhatsApp after processor error: ' . $e2->getMessage());
+            //    }
+            //}
+            throw new \RuntimeException("Processing failed for chatId {$chatId}: " . $e->getMessage(), 0, $e);
         }
     }
 
     /**
      * Extracts metadata from LLM reply and removes command lines from the text.
-     * (This function remains unchanged, private to the processor)
      */
     private function extractAndCategorizeFromLLMReply(string $llmReplyText, array $allowedCategories): array
     {

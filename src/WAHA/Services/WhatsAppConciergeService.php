@@ -113,8 +113,6 @@ class WhatsAppConciergeService
             file_put_contents($this->logDir . 'llm-reply-internal-' . time() . '.log', $initialLLMReplyText);
         }
 
-        file_put_contents($this->logDir . 'extract-categories.log', date('c') . ' ' . __LINE__);
-
         // Extract category, severity, and subject from LLM reply and filter the text
         [$filteredReplyForUser, $category, $severity, $subject] = $this->extractAndCategorizeFromLLMReply(
             $initialLLMReplyText,
@@ -138,18 +136,14 @@ class WhatsAppConciergeService
 
         // Add assistant reply to Firebase
         try {
-            file_put_contents($this->logDir . 'extract-categories.log', date('c') . ' ' . __LINE__ . "\n", FILE_APPEND);
             $this->firebase->addConversationMessage($activeTicketId, 'assistant', $reply);
-            file_put_contents($this->logDir . 'extract-categories.log', date('c') . ' ' . __LINE__ . "\n", FILE_APPEND);
         } catch (DatabaseException $e) {
-            file_put_contents($this->logDir . 'extract-categories.log', date('c') . ' ' . __LINE__ . "\n", FILE_APPEND);
             file_put_contents(
                 $this->logDir . 'firebase-error.log',
                 '[' . date('c') . '] ' . $e->getMessage(),
                 FILE_APPEND
             );
         }
-        file_put_contents($this->logDir . 'extract-categories.log', date('c') . ' ' . __LINE__, FILE_APPEND);
 
         return ['reply' => $reply, 'ticketId' => $activeTicketId];
     }
