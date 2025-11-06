@@ -92,17 +92,17 @@ class WhatsAppService
 
     public function sendSeen(string $chatId, string $messageId): void
     {
-        $this->executeCurlCommand('api/sendSeen', ['chatId' => $chatId, 'messageId' => $messageId]);
+        $this->executeCurlCommand('api/sendSeen', ['session' => 'default', 'chatId' => $chatId]);
     }
 
     public function startTyping(string $chatId): void
     {
-        $this->executeCurlCommand('api/startTyping', ['chatId' => $chatId]);
+        $this->executeCurlCommand('api/startTyping', ['session' => 'default', 'chatId' => $chatId]);
     }
 
     public function stopTyping(string $chatId): void
     {
-        $this->executeCurlCommand('api/stopTyping', ['chatId' => $chatId]);
+        $this->executeCurlCommand('api/stopTyping', ['session' => 'default', 'chatId' => $chatId]);
     }
 
     public function sendReaction(string $messageId, string $reaction): void
@@ -111,7 +111,7 @@ class WhatsAppService
         // Assuming it's 'api/sendReaction' with messageId and reaction.
         // If it fails silently in simulation, that's fine for dev.
         try {
-            $this->executeCurlCommand('api/sendReaction', ['messageId' => $messageId, 'reaction' => $reaction]);
+            $this->executeCurlCommand('api/sendReaction', ['session' => 'default', 'messageId' => $messageId, 'reaction' => $reaction]);
         } catch (Exception $e) {
             error_log("Failed to send reaction: " . $e->getMessage());
             // Reactions are non-critical, so we just log and continue.
