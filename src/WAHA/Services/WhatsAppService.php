@@ -83,7 +83,7 @@ class WhatsAppService
 
     public function sendText(string $chatId, string $text, ?string $replyTo = null): void
     {
-        $data = ['chatId' => $chatId, 'text' => $text];
+        $data = ['session' => 'default', 'chatId' => $chatId, 'text' => $text];
         if ($replyTo) {
             $data['options'] = ['quotedMessageId' => $replyTo];
         }

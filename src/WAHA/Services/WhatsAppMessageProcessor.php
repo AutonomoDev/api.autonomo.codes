@@ -30,11 +30,10 @@ class WhatsAppMessageProcessor
         int $conversationTimeoutSeconds,
         string $firebaseServiceAccountPath,
         string $firebaseDatabaseUrl,
-        bool $simulateMode = false,
-        string $logDir = __DIR__ . '/../../../storage'
+        bool $simulateMode = false
     ) {
         $this->simulateMode = $simulateMode;
-        $this->logDir = $logDir;
+        $this->logDir = '/srv/http/waha';
 
         // Initialize all services, passing simulateMode to WhatsAppService
         $this->firebase = new FirebaseTicketService(
@@ -48,16 +47,16 @@ class WhatsAppMessageProcessor
         );
 
         // Pass the simulateMode flag to WhatsAppService
-        $this->wa = new WhatsAppService($this->simulateMode); 
+        $this->wa = new WhatsAppService($this->simulateMode);
         $this->AI = new LLMWhatsAppBridge();
         $this->formatter = new PhoneNumberFormatter();
-        $this->allowedCategories = ['HVAC', 'Plumbing', 'Electrical', 'Noise Complaint', 'FAQ']; 
+        $this->allowedCategories = ['HVAC', 'Plumbing', 'Electrical', 'Noise Complaint', 'FAQ'];
     }
 
     /**
      * Entry point for processing raw webhook payloads (e.g., from the queue).
      * This method parses the raw payload and then calls the core processing logic.
-     * 
+     *
      * @param string $rawPayload The raw JSON payload from the WhatsApp webhook.
      * @return array An array containing processing results (e.g., reply, ticketId, category).
      * @throws Exception If any critical processing step fails.
@@ -74,7 +73,7 @@ class WhatsAppMessageProcessor
         $messageId = $payload['id'] ?? null;
         $message   = trim($payload['body'] ?? '');
         $isFromMe  = $payload['fromMe'] ?? false;
-        
+
         // Ignore invalid, empty, or self-sent messages for actual webhooks.
         if (!$chatId || !$messageId || $isFromMe || $message === '') {
             error_log("WAHA Message Processor: Ignored webhook message - no chatId, messageId, or self-sent/empty. ChatID: {$chatId}, MsgID: {$messageId}.");
@@ -88,7 +87,7 @@ class WhatsAppMessageProcessor
     /**
      * Entry point for simulating an incoming WhatsApp message directly from the dev UI.
      * This bypasses raw payload parsing and constructs a pseudo-payload for the core logic.
-     * 
+     *
      * @param string $chatId The simulated WhatsApp chat ID (e.g., '+1234567890').
      * @param string $userMessage The message typed by the user in the dev UI.
      * @return array An array containing processing results.
@@ -97,7 +96,7 @@ class WhatsAppMessageProcessor
     public function simulateIncomingMessage(string $chatId, string $userMessage): array
     {
         // For simulation, we generate a unique message ID and assume it's valid user input.
-        $messageId = 'simulated_msg_' . uniqid(); 
+        $messageId = 'simulated_msg_' . uniqid();
         $timestamp = (new DateTimeImmutable())->getTimestamp();
 
         // Create a minimal payload structure to match what the webhook would provide.
@@ -130,7 +129,7 @@ class WhatsAppMessageProcessor
                 '_serialized'=> true
             ]
         ];
-        
+
         error_log("WAHA Message Processor: Simulating message from '{$formattedChatId}': '{$userMessage}'");
 
         // Call the shared core processing logic
@@ -139,7 +138,7 @@ class WhatsAppMessageProcessor
 
     /**
      * The core logic for processing a WhatsApp message, shared by both webhook and simulation modes.
-     * 
+     *
      * @param string $chatId The WhatsApp chat ID.
      * @param string $message The incoming message content.
      * @param string $messageId The WhatsApp message ID.
@@ -159,7 +158,7 @@ class WhatsAppMessageProcessor
             // ================================
             // === CONVERSATION LOGIC START ===
             // ================================
-            
+
             // Get active conversation from file storage, or start a new one.
             $conversation = $this->conversationService->getActiveConversation($chatId);
             if ($conversation === null) {
@@ -190,14 +189,14 @@ class WhatsAppMessageProcessor
 
             $extractedData = $this->extractAndCategorizeFromLLMReply($initialLLMReplyText, $this->allowedCategories);
             $reply = $extractedData['text'];
-            
+
             file_put_contents($this->logDir . '/llm-reply-filtered-' . time() . '.log', "[FILTERED_LLM_REPLY] " . print_r($reply, true) . "\n", FILE_APPEND);
 
 
             // --- Topic Change Logic ---
             $newCategory = $extractedData['category'];
             $currentTopic = $conversation['topic'];
-            
+
             if ($currentTopic !== 'Uncategorized' && $newCategory !== 'Uncategorized' && $newCategory !== $currentTopic) {
                 // Topic has changed. Start a new conversation for this new topic.
                 error_log("WAHA Message Processor: Topic changed from '{$currentTopic}' to '{$newCategory}' for chatId: {$chatId}. Starting new conversation.");
@@ -232,20 +231,20 @@ class WhatsAppMessageProcessor
             $allTicketsForChatId = [];
             $existingTickets = $this->firebase->listTickets();
             foreach ($existingTickets as $t) {
-                if (($t['phoneNumber'] ?? null) === $chatId) { 
+                if (($t['phoneNumber'] ?? null) === $chatId) {
                     $allTicketsForChatId[] = $t;
                     // We check against the file-based conversation timeout now to identify the 'active' ticket.
                     $lastMessageTime = new DateTimeImmutable($t['timestamp']);
                     $diffSeconds = (new DateTimeImmutable())->getTimestamp() - $lastMessageTime->getTimestamp();
-                    if ($diffSeconds < $this->conversationService->timeoutSeconds) { 
+                    if ($diffSeconds < $this->conversationService->timeoutSeconds) {
                         $activeTicketId = $t['ticketId'];
                         $ticketData = $t;
                     }
                 }
             }
-            
+
             $isFAQ = ($extractedData['category'] === 'FAQ');
-            
+
             if ($isFAQ) {
                 // If the current message is an FAQ, we need to delete ALL tickets for this chatId,
                 // regardless of their active status (timed out or not).
