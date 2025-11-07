@@ -3,11 +3,6 @@
 
 namespace Autonomo\API\WAHA\Services;
 
-use Autonomo\API\WAHA\Services\ConversationService;
-use Autonomo\API\WAHA\Services\LLMWhatsAppBridge;
-use Autonomo\API\WAHA\Services\WhatsAppService;
-use Autonomo\API\WAHA\Services\FirebaseTicketService;
-use Autonomo\API\WAHA\Services\PhoneNumberFormatter;
 use DateTimeImmutable;
 use DateTimeInterface;
 use Exception;
@@ -21,6 +16,7 @@ class WhatsAppMessageProcessor
     private WhatsAppService $wa;
     private LLMWhatsAppBridge $AI;
     private PhoneNumberFormatter $formatter;
+    private ConversationAnalytics $analytics;
     private array $allowedCategories;
     private bool $simulateMode;
     private string $logDir;
@@ -50,6 +46,9 @@ class WhatsAppMessageProcessor
         $this->wa = new WhatsAppService($this->simulateMode);
         $this->AI = new LLMWhatsAppBridge();
         $this->formatter = new PhoneNumberFormatter();
+
+        $this->analytics = new ConversationAnalytics();
+
         $this->allowedCategories = ['HVAC', 'Plumbing', 'Electrical', 'Noise Complaint', 'FAQ'];
     }
 
@@ -148,6 +147,9 @@ class WhatsAppMessageProcessor
      */
     private function _processMessageCore(string $chatId, string $message, string $messageId, array $payload): array
     {
+        // Track processing time for metrics
+        $processingStartTime = microtime(true);
+
         $this->wa->sendSeen($chatId, $messageId);
         if (!$this->simulateMode) {
             usleep(mt_rand(15000, 2500000));
@@ -295,6 +297,18 @@ class WhatsAppMessageProcessor
             $this->wa->sendText($chatId, $reply, $messageId);
             error_log("WAHA Message Processor: Sent reply to {$chatId}. (Simulate: {$this->simulateMode})");
 
+            // Calculate response time for metrics
+            $processingEndTime = microtime(true);
+            $responseTimeMs = round(($processingEndTime - $processingStartTime) * 1000);
+
+            // Track conversation analytics
+            $this->analytics->trackConversation(
+                $chatId,
+                $conversation,
+                $extractedData,
+                $responseTimeMs
+            );
+
             return [
                 'status'             => 'ok',
                 'ticketId'           => $isFAQ ? null : $activeTicketId,
@@ -305,7 +319,8 @@ class WhatsAppMessageProcessor
                 'messageId'          => $messageId,
                 'user_message'       => $message,
                 'conversation_topic' => $conversation['topic'],
-                'extractedData'      => $extractedData
+                'extractedData'      => $extractedData,
+                'response_time_ms'   => $responseTimeMs
             ];
 
         } catch (DatabaseException $e) {
