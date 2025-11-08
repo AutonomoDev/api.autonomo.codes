@@ -14,7 +14,7 @@ class WhatsAppWebhookController
         // Inject paths and config needed for WhatsAppMessageProcessor.
         // For a real application, consider a dependency injection container.
         string $conversationStoragePath = __DIR__ . '/../../../storage/conversations',
-        int $conversationTimeoutSeconds = 900, // 15 minutes timeout
+        int $conversationTimeoutSeconds = 1800, // 30 minutes timeout
         string $firebaseServiceAccountPath = __DIR__ . '/../../../firebase-ai-concierge-94fe8-adminsdk-fbsvc-f03a2644a3.json',
         string $firebaseDatabaseUrl = 'https://ai-concierge-94fe8-default-rtdb.firebaseio.com/'
     ) {

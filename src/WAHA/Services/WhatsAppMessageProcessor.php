@@ -228,12 +228,13 @@ class WhatsAppMessageProcessor
             $activeTicketId = null;
             $ticketData = null;
             $timestamp = (new DateTimeImmutable())->format(DateTimeInterface::ATOM);
+            $phoneNumber = $this->formatter->formatFromChatId($chatId);
 
             // Find all tickets for this chatId, and specifically the active one if any.
             $allTicketsForChatId = [];
             $existingTickets = $this->firebase->listTickets();
             foreach ($existingTickets as $t) {
-                if (($t['phoneNumber'] ?? null) === $chatId) {
+                if (($t['phoneNumber'] ?? null) === $phoneNumber) {
                     $allTicketsForChatId[] = $t;
                     // We check against the file-based conversation timeout now to identify the 'active' ticket.
                     $lastMessageTime = new DateTimeImmutable($t['timestamp']);
@@ -260,7 +261,6 @@ class WhatsAppMessageProcessor
                 // It's a real issue, so create or update the Firebase ticket.
                 if (!$activeTicketId) {
                     $activeTicketId = 'TICKET-' . strtoupper(substr(md5($chatId . microtime()), 0, 8));
-                    $phoneNumber = $this->formatter->formatFromChatId($chatId);
                     $ticketData = [
                         'ticketId'     => $activeTicketId,
                         'residentName' => $payload['_data']['notifyName'] ?? 'Unknown',
