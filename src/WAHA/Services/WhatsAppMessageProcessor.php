@@ -182,8 +182,8 @@ class WhatsAppMessageProcessor
 
             $initialLLMReplyText = $replyResponse['content'][0]['text'] ?? 'Sorry, I could not process that.';
 
-            // Extract metadata from LLM reply and filter the text for the user.
-            if (str_starts_with($initialLLMReplyText, '### ')) {
+            // If the LLM reply contains any internal commands/notes, log the full raw reply for debugging.
+            if (str_contains($initialLLMReplyText, '### ') || str_contains($initialLLMReplyText, '+++ ')) {
                 file_put_contents($this->logDir . '/llm-reply-internal-' . time() . '.log', $initialLLMReplyText);
             }
 
@@ -365,39 +365,46 @@ class WhatsAppMessageProcessor
             'actionTaken'  => '',
         ];
 
-        $internalNotePattern = '/^###\s*(.*)$/';
+        // This pattern matches specific commands like +++ CATEGORY: Plumbing
         $commandPattern = '/^\+\+\+\s*(CATEGORY|SEVERITY|SUBJECT|RESIDENT_ID|ACTION_TAKEN)\s*:\s*(.*)$/iu';
 
         foreach ($lines as $line) {
             $trimmedLine = trim($line);
 
-            if (preg_match($internalNotePattern, $trimmedLine)) {
+            // Filter out internal notes (starting with ###)
+            if (str_starts_with($trimmedLine, '### ')) {
                 continue;
             }
 
-            if (preg_match($commandPattern, $trimmedLine, $matches)) {
-                $key = strtoupper($matches[1]);
-                $value = trim($matches[2]);
+            // Process and filter out command/note lines (starting with +++)
+            if (str_starts_with($trimmedLine, '+++ ')) {
+                // Check if it's a structured command we can parse for metadata
+                if (preg_match($commandPattern, $trimmedLine, $matches)) {
+                    $key = strtoupper($matches[1]);
+                    $value = trim($matches[2]);
 
-                switch ($key) {
-                    case 'CATEGORY':
-                        if (in_array($value, $allowedCategories, true)) {
-                            $extractedData['category'] = $value;
-                        }
-                        break;
-                    case 'SEVERITY':
-                        $extractedData['severity'] = $value;
-                        break;
-                    case 'SUBJECT':
-                        $extractedData['subject'] = $value;
-                        break;
-                    case 'RESIDENT_ID':
-                        $extractedData['residentName'] = $value;
-                        break;
-                    case 'ACTION_TAKEN':
-                        $extractedData['actionTaken'] = $value;
-                        break;
+                    switch ($key) {
+                        case 'CATEGORY':
+                            if (in_array($value, $allowedCategories, true)) {
+                                $extractedData['category'] = $value;
+                            }
+                            break;
+                        case 'SEVERITY':
+                            $extractedData['severity'] = $value;
+                            break;
+                        case 'SUBJECT':
+                            $extractedData['subject'] = $value;
+                            break;
+                        case 'RESIDENT_ID':
+                            $extractedData['residentName'] = $value;
+                            break;
+                        case 'ACTION_TAKEN':
+                            $extractedData['actionTaken'] = $value;
+                            break;
+                    }
                 }
+                // Always skip adding +++ lines to the final reply, regardless of whether
+                // they were a parsable command or just an internal comment.
                 continue;
             }
 
