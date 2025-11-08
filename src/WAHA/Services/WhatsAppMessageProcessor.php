@@ -3,6 +3,8 @@
 
 namespace Autonomo\API\WAHA\Services;
 
+use Autonomo\API\AutonomoConcierge\NotTenantException;
+use Autonomo\API\AutonomoConcierge\TenantManager;
 use DateTimeImmutable;
 use DateTimeInterface;
 use Exception;
@@ -157,6 +159,20 @@ class WhatsAppMessageProcessor
         $this->wa->startTyping($chatId);
 
         try {
+            $phoneNumber = $this->formatter->formatFromChatId($chatId);
+        } catch (NotTenantException) {
+            $this->wa->sendText(
+                $chatId,
+                "Hello, it seems like you are not part of the Nakheel community, so I can't assist you today.",
+                $messageId
+            );
+            return ['status' => 'non_tenant_rejected'];
+        }
+
+        $tenantInfo = TenantManager::grabTenantDetails($phoneNumber);
+
+
+        try {
             // ================================
             // === CONVERSATION LOGIC START ===
             // ================================
@@ -267,7 +283,7 @@ class WhatsAppMessageProcessor
                         'phoneNumber'  => $phoneNumber,
                         'status'       => 'New',
                         'vendor'       => 'VENDOR 1',
-                        'location'     => 'Unspecified',
+                        'location'     => $tenantInfo['building'] . ($tenantInfo['aptoNo'] !== '' ? ' (' . $tenantInfo['aptoNo'] . ')' : ''),
                         'status_history' => [],
                     ];
                     error_log("WAHA Message Processor: Created new ticket {$activeTicketId} for {$chatId}.");
@@ -299,7 +315,7 @@ class WhatsAppMessageProcessor
 
             // Calculate response time for metrics
             $processingEndTime = microtime(true);
-            $responseTimeMs = round(($processingEndTime - $processingStartTime) * 1000);
+            $responseTimeMs = (int) round(($processingEndTime - $processingStartTime) * 1000);
 
             // Track conversation analytics
             $this->analytics->trackConversation(

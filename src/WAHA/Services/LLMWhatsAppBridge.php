@@ -3,6 +3,7 @@
 namespace Autonomo\API\WAHA\Services;
 
 use Autonomo\AiSpeaker\LLMSpeaker;
+use Autonomo\API\AutonomoConcierge\TenantManager;
 
 class LLMWhatsAppBridge
 {
@@ -55,12 +56,12 @@ class LLMWhatsAppBridge
         $storage = __DIR__ . '/../../../storage/';
         $systemPrompt = file_get_contents($storage . '/prompt.md');
         $answers = file_get_contents($storage . '/faq.tsv');
-        $tenants = file_get_contents($storage . '/tenants.tsv');
         $vendors = file_get_contents($storage . '/vendors.tsv');
+        $tenant = TenantManager::grabTenantDetails($this->phoneNumberFormatter->toPlainE164($phone));
 
         $systemPrompt = str_replace(
             ['[[TENANTS]]', '[[VENDORS]]', '[[FAQ]]'],
-            [$tenants, $vendors, $answers],
+            [$tenant, $vendors, $answers],
             $systemPrompt
         );
 

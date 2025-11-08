@@ -56,7 +56,8 @@ class PhoneNumberFormatter
 
             // 4. Check if the parsed number is considered valid by the library.
             if (!$this->phoneUtil->isValidNumber($phoneNumberProto)) {
-                return $chatId; // Not a valid number, return original.
+                // It's not a valid number, return original.
+                return $chatId;
             }
 
             // 5. Format the number into the standard international format.
@@ -70,5 +71,28 @@ class PhoneNumberFormatter
             error_log("Could not parse phone number from chat ID '{$chatId}': " . $e->getMessage());
             return $chatId;
         }
+    }
+
+    /**
+     * Convert a phone number in the form “+1 832-303-9477”
+     * (or any similar formatting with spaces, dashes, parentheses)
+     * to the plain numeric E.164 string without the leading plus:
+     *   18323039477
+     *
+     * @param string $input The formatted phone number.
+     * @return string|null The numeric string or null if the input is invalid.
+     */
+    public static function toPlainE164(string $input): ?string
+    {
+        // Remove every character that is not a digit
+        $digits = preg_replace('/\D+/', '', $input);
+
+        // Basic sanity check – a US number should have at least 10 digits;
+        // international numbers vary, so we just require a minimum length.
+        if (strlen($digits) < 7) {
+            throw new \InvalidArgumentException("There are not enough digits for '$input' to be a valid phone number.");
+        }
+
+        return $digits;
     }
 }
